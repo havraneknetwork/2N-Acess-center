@@ -1,0 +1,1817 @@
+<!DOCTYPE html>
+<html lang="cs" class="h-full">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#101828" id="themeColorMeta">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="2N Dveře">
+  <title>2N Dveře | Správa a odemykání</title>
+
+  <link rel="manifest" href="/manifest.json">
+  <link rel="apple-touch-icon" sizes="180x180" href="/icons/icon-192x192.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/icons/icon-96x96.png">
+
+  <!-- Apply the saved color theme before the page is rendered. -->
+  <script>
+    (function () {
+      const savedTheme = localStorage.getItem('door_theme');
+      const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+      const isDark = savedTheme ? savedTheme === 'dark' : prefersDark;
+      if (isDark) {
+        document.documentElement.classList.add('dark');
+      } else {
+        document.documentElement.classList.remove('dark');
+      }
+    })();
+  </script>
+
+  <link rel="stylesheet" href="/xtrastyle.css?v=20261105_1">
+  <link rel="stylesheet" href="/oneui.css?v=20261105_8">
+</head>
+<body class="bg-gray-50 text-gray-800 dark:bg-gray-950 dark:text-gray-200 antialiased h-full flex flex-col font-sans selection:bg-brand-500 selection:text-white">
+
+  <div class="flex h-screen overflow-hidden">
+    <!-- BACKDROP PRO MOBILNÍ BOČNÍ MENU -->
+    <div id="sidebarBackdrop" class="fixed inset-0 z-40 bg-gray-900/60 backdrop-blur-xs transition-opacity duration-300 hidden lg:hidden" aria-hidden="true"></div>
+
+    <!-- BOČNÍ PANEL -->
+    <aside id="sidebar" class="fixed inset-y-0 left-0 z-50 flex w-72 flex-col justify-between border-r border-gray-200 bg-white transition-transform duration-300 ease-in-out -translate-x-full lg:static lg:translate-x-0 dark:border-gray-800 dark:bg-gray-900">
+      <div class="flex flex-col h-full overflow-y-auto">
+        <!-- HLAVIČKA SIDEBARU S LOGEM -->
+        <div class="flex items-center justify-between border-b border-gray-100 px-6 py-4 dark:border-gray-800/80">
+          <a href="#" id="sidebarLogoLink" class="flex items-center gap-3 group cursor-pointer" title="Přejít na Home">
+            <div class="flex h-10 w-10 items-center justify-center rounded-xl bg-brand-500 text-white shadow-md shadow-brand-500/20 group-hover:scale-105 transition-transform">
+              <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+              </svg>
+            </div>
+            <div>
+              <span class="text-sm font-bold tracking-tight text-gray-900 dark:text-white flex items-center gap-1.5">
+                2N Dveře
+                <span class="inline-flex items-center rounded-md bg-brand-50 px-1.5 py-0.5 text-[10px] font-semibold text-brand-600 ring-1 ring-inset ring-brand-500/10 dark:bg-brand-500/10 dark:text-brand-400">DEV</span>
+              </span>
+              <p class="text-[11px] text-gray-500 dark:text-gray-400" id="sidebarSubtitle">Dálkové odemykání</p>
+            </div>
+          </a>
+
+          <button id="closeSidebarBtn" class="p-1.5 rounded-lg text-gray-500 hover:bg-gray-100 lg:hidden dark:text-gray-400 dark:hover:bg-gray-800" aria-label="Zavřít menu">
+            <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
+            </svg>
+          </button>
+        </div>
+
+        <!-- NAVIGAČNÍ ZÁLOŽKY -->
+        <div class="px-4 py-5">
+          <p class="px-3 text-xs font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-500 mb-2.5">Menu</p>
+          <nav class="space-y-1" id="navTabs">
+            <!-- HOME ZÁLOŽKA -->
+            <button data-tab="home" class="nav-tab-btn w-full flex items-center gap-3.5 rounded-xl px-3.5 py-2.5 text-sm font-medium transition-all text-white bg-brand-500 shadow-sm shadow-brand-500/30">
+              <svg class="h-5 w-5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+                <polyline points="9 22 9 12 15 12 15 22"/>
+              </svg>
+              <span>Home</span>
+            </button>
+
+            <!-- LOG ZÁLOŽKA (PRO SPRÁVCE A ADMINA) -->
+            <button data-tab="logs" id="navLogsBtn" class="nav-tab-btn hidden w-full items-center gap-3.5 rounded-xl px-3.5 py-2.5 text-sm font-medium transition-all text-gray-600 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-white">
+              <svg class="h-5 w-5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                <polyline points="14 2 14 8 20 8"/>
+                <line x1="16" y1="13" x2="8" y2="13"/>
+                <line x1="16" y1="17" x2="8" y2="17"/>
+                <polyline points="10 9 9 9 8 9"/>
+              </svg>
+              <span>Log</span>
+            </button>
+
+            <!-- INFORMACE (PRO SPRÁVCE A ADMINA) -->
+            <button data-tab="info" id="navInfoBtn" class="nav-tab-btn hidden w-full items-center gap-3.5 rounded-xl px-3.5 py-2.5 text-sm font-medium transition-all text-gray-600 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-white">
+              <svg class="h-5 w-5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="10"/>
+                <path d="M12 16v-4"/>
+                <path d="M12 8h.01"/>
+              </svg>
+              <span>Informace</span>
+              <span class="ml-auto rounded-md bg-amber-50 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700 dark:bg-amber-500/10 dark:text-amber-400">Správa</span>
+            </button>
+
+            <!-- SPRÁVA UŽIVATELŮ (PRO SPRÁVCE A ADMINA) -->
+            <button data-tab="users" id="navUsersBtn" class="nav-tab-btn hidden w-full items-center gap-3.5 rounded-xl px-3.5 py-2.5 text-sm font-medium transition-all text-gray-600 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-white">
+              <svg class="h-5 w-5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/>
+                <circle cx="9" cy="7" r="4"/>
+                <path d="M22 21v-2a4 4 0 0 0-3-3.87"/>
+                <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+              </svg>
+              <span>Správa uživatelů</span>
+              <span class="ml-auto rounded-md bg-amber-50 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700 dark:bg-amber-500/10 dark:text-amber-400">Správa</span>
+            </button>
+
+            <!-- JEDNOTKY (POUZE PRO ADMINA) -->
+            <button data-tab="units" id="navUnitsBtn" class="nav-tab-btn hidden w-full items-center gap-3.5 rounded-xl px-3.5 py-2.5 text-sm font-medium transition-all text-gray-600 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-white">
+              <svg class="h-5 w-5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="4" y="2" width="16" height="20" rx="2"/>
+                <path d="M8 6h8M8 10h8M8 14h4"/>
+                <circle cx="17" cy="17" r="1"/>
+              </svg>
+              <span>Jednotky</span>
+              <span class="ml-auto rounded-md bg-amber-50 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700 dark:bg-amber-500/10 dark:text-amber-400">Admin</span>
+            </button>
+
+            <!-- BEZPEČNOSTNÍ KLÍČE (PRO SPRÁVCE A ADMINA) -->
+            <button data-tab="keys" id="navKeysBtn" class="nav-tab-btn hidden w-full items-center gap-3.5 rounded-xl px-3.5 py-2.5 text-sm font-medium transition-all text-gray-600 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-white">
+              <svg class="h-5 w-5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="8" cy="15" r="5"/>
+                <path d="m21 2-9.6 9.6"/>
+                <path d="m15.5 7.5 3 3"/>
+                <path d="m18.5 4.5 3 3"/>
+              </svg>
+              <span>Bezpečnostní klíče</span>
+              <span class="ml-auto rounded-md bg-amber-50 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700 dark:bg-amber-500/10 dark:text-amber-400">Správa</span>
+            </button>
+
+            <!-- TRVALÉ ODEMČENÍ (PRO SPRÁVCE A ADMINA) -->
+            <button data-tab="permanent" id="navPermanentBtn" class="nav-tab-btn hidden w-full items-center gap-3.5 rounded-xl px-3.5 py-2.5 text-sm font-medium transition-all text-gray-600 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-white">
+              <svg class="h-5 w-5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                <path d="M7 11V7a5 5 0 0 1 9.9-1"/>
+                <circle cx="12" cy="16" r="1"/>
+              </svg>
+              <span>Trvalé odemčení</span>
+              <span class="ml-auto rounded-md bg-amber-50 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700 dark:bg-amber-500/10 dark:text-amber-400">Správa</span>
+            </button>
+
+            <!-- ROZVRH (POUZE PRO ADMINA) -->
+            <button data-tab="schedule" id="navScheduleBtn" class="nav-tab-btn hidden w-full items-center gap-3.5 rounded-xl px-3.5 py-2.5 text-sm font-medium transition-all text-gray-600 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-white">
+              <svg class="h-5 w-5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+                <line x1="16" y1="2" x2="16" y2="6"/>
+                <line x1="8" y1="2" x2="8" y2="6"/>
+                <line x1="3" y1="10" x2="21" y2="10"/>
+              </svg>
+              <span>Rozvrh</span>
+            </button>
+          </nav>
+        </div>
+
+        <!-- STAV PŘIPOJENÍ V PATIČCE SIDEBARU (BEZ DETAILŮ ZAŘÍZENÍ) -->
+        <div class="mt-auto p-4 border-t border-gray-100 dark:border-gray-800/80">
+          <div class="rounded-xl bg-gray-50 p-3 dark:bg-gray-800/50 border border-gray-100 dark:border-gray-800">
+            <div class="flex items-center gap-2">
+              <span id="sidebarStatusDot" class="h-2.5 w-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
+              <span class="text-xs font-semibold text-gray-700 dark:text-gray-300" id="sidebarStatusText">Síť ověřena</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </aside>
+
+    <!-- HLAVNÍ OBSAHOVÁ ČÁST -->
+    <div class="flex flex-1 flex-col overflow-hidden">
+      <!-- HORNÍ HLAVIČKA -->
+      <header class="flex h-14 shrink-0 items-center justify-between border-b border-gray-200 bg-white px-4 sm:px-6 dark:border-gray-800 dark:bg-gray-900 z-30">
+        <div class="flex items-center gap-3">
+          <!-- HAMBURGER TLAČÍTKO PRO MOBILY -->
+          <button id="openSidebarBtn" class="p-2 -ml-2 rounded-xl text-gray-500 hover:bg-gray-100 lg:hidden dark:text-gray-400 dark:hover:bg-gray-800" aria-label="Otevřít menu">
+            <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="3" y1="12" x2="21" y2="12"></line>
+              <line x1="3" y1="6" x2="21" y2="6"></line>
+              <line x1="3" y1="18" x2="21" y2="18"></line>
+            </svg>
+          </button>
+
+          <!-- NÁZEV STRÁNKY -->
+          <h1 class="text-base sm:text-lg font-bold text-gray-900 dark:text-white" id="pageHeaderTitle">Home</h1>
+        </div>
+
+        <!-- PRAVÁ STRANA HLAVIČKY -->
+        <div class="flex items-center gap-3">
+          <!-- PŘEPÍNAČ MOTIVU (DARK / LIGHT) V HLAVIČCE -->
+          <button id="themeToggleQuickBtn" class="flex h-9 w-9 items-center justify-center rounded-xl border border-gray-200 text-gray-500 hover:bg-gray-100 hover:text-gray-900 dark:border-gray-800 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-white transition-colors" title="Přepnout tmavý / světlý motiv" aria-label="Přepnout motiv">
+            <svg class="h-4 w-4 sun-icon dark:hidden" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="5"></circle>
+              <line x1="12" y1="1" x2="12" y2="3"></line>
+              <line x1="12" y1="21" x2="12" y2="23"></line>
+              <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+              <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+              <line x1="1" y1="12" x2="3" y2="12"></line>
+              <line x1="21" y1="12" x2="23" y2="12"></line>
+              <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+              <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+            </svg>
+            <svg class="h-4 w-4 moon-icon hidden dark:block" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+            </svg>
+          </button>
+
+          <!-- UŽIVATELSKÝ DROPDOWN S KOLEČKEM (POČÁTEČNÍ PÍSMENO) -->
+          <div class="relative" id="userMenuWrapper">
+            <button id="userDropdownBtn" class="flex items-center gap-2 rounded-xl p-1 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors" aria-expanded="false" aria-haspopup="true">
+              <!-- Profilové kolečko s počátečním písmenem -->
+              <div id="userAvatarCircle" class="flex h-8 w-8 items-center justify-center rounded-full bg-brand-500 text-xs font-bold text-white shadow-xs">
+                A
+              </div>
+              <div class="hidden text-left sm:block">
+                <span class="block text-xs font-semibold text-gray-900 dark:text-white leading-tight" id="headerUsername">admin</span>
+                <span class="block text-[10px] text-gray-400 capitalize" id="headerUserRole">Správce</span>
+              </div>
+              <svg class="h-3.5 w-3.5 text-gray-400 hidden sm:block transition-transform duration-200" id="userDropdownArrow" viewBox="0 0 20 20" fill="currentColor">
+                <path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z" clip-rule="evenodd" />
+              </svg>
+            </button>
+
+            <!-- DROPDOWN NABÍDKA -->
+            <div id="userDropdownMenu" class="absolute right-0 mt-2 w-52 origin-top-right rounded-2xl border border-gray-100 bg-white py-2 shadow-xl shadow-gray-900/10 dark:border-gray-800 dark:bg-gray-900 hidden z-50">
+              <div class="px-4 py-2 border-b border-gray-100 dark:border-gray-800/80">
+                <p class="text-[11px] text-gray-400">Přihlášený účet</p>
+                <p class="text-xs font-semibold text-gray-900 dark:text-white truncate" id="dropdownUsernameFull">admin</p>
+              </div>
+
+              <div class="py-1">
+                <!-- TLAČÍTKO NASTAVENÍ -->
+                <button id="openSettingsBtn" class="flex w-full items-center gap-2.5 px-4 py-2 text-xs text-gray-700 hover:bg-gray-50 hover:text-brand-600 dark:text-gray-300 dark:hover:bg-gray-800 dark:hover:text-brand-400 transition-colors">
+                  <svg class="h-4 w-4 text-gray-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="3"></circle>
+                    <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+                  </svg>
+                  <span>Nastavení</span>
+                </button>
+              </div>
+
+              <div class="border-t border-gray-100 dark:border-gray-800/80 pt-1">
+                <button id="logoutBtn" class="flex w-full items-center gap-2.5 px-4 py-2 text-xs text-rose-600 hover:bg-rose-50 dark:text-rose-400 dark:hover:bg-rose-950/30 transition-colors">
+                  <svg class="h-4 w-4 text-rose-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+                    <polyline points="16 17 21 12 16 7"></polyline>
+                    <line x1="21" y1="12" x2="9" y2="12"></line>
+                  </svg>
+                  <span>Odhlásit se</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <!-- HLAVNÍ OBLAST OBSAHU -->
+      <main class="flex-1 overflow-y-auto p-3 sm:p-5 flex flex-col">
+
+        <!-- =================================================================== -->
+        <!-- 1. ZÁLOŽKA: HOME (KOMPAKTNÍ, BEZ SCROLLOVÁNÍ, PŮVODNÍ ANIMACE)      -->
+        <!-- =================================================================== -->
+        <section id="tab-home" class="tab-pane flex-1 flex flex-col max-w-xl w-full mx-auto items-center justify-center my-auto space-y-4">
+
+          <!-- KARTA STATUSU / OZNÁMENÍ -->
+          <div id="homeStatusCard" class="hidden w-full rounded-2xl border p-3 transition-all text-xs">
+            <div class="flex items-center gap-2.5">
+              <span id="homeStatusIcon"></span>
+              <p id="homeStatusMsg" class="font-medium"></p>
+            </div>
+          </div>
+
+          <div id="unitControlsContainer" class="hidden w-full space-y-3"></div>
+          <div id="permanentControlsWrapper" class="hidden mt-3 mb-1 w-full max-w-xs flex items-center justify-center gap-2.5">
+            <button id="btnStartPermanent" type="button" class="group flex-1 inline-flex items-center justify-center gap-2 rounded-xl border-2 border-amber-500 dark:border-amber-400 bg-amber-50/80 hover:bg-amber-500 active:bg-amber-600 text-amber-800 dark:text-amber-200 hover:text-white dark:hover:text-white dark:bg-amber-950/40 px-3.5 py-2.5 text-xs font-bold shadow-md shadow-amber-500/10 hover:shadow-amber-500/30 transition-all duration-150 cursor-pointer active:scale-95 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-offset-1 dark:focus:ring-offset-gray-900">
+              <svg class="w-4 h-4 shrink-0 text-amber-600 dark:text-amber-400 group-hover:text-white dark:group-hover:text-white transition-colors" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                <path d="M7 11V7a5 5 0 0 1 9.9-1"/>
+              </svg>
+              <span>Trvale odemknout</span>
+            </button>
+            <button id="btnStopPermanent" type="button" class="group flex-1 inline-flex items-center justify-center gap-2 rounded-xl border-2 border-rose-500 dark:border-rose-400 bg-rose-50/80 hover:bg-rose-500 active:bg-rose-600 text-rose-800 dark:text-rose-200 hover:text-white dark:hover:text-white dark:bg-rose-950/40 px-3.5 py-2.5 text-xs font-bold shadow-md shadow-rose-500/10 hover:shadow-rose-500/30 transition-all duration-150 cursor-pointer active:scale-95 focus:outline-none focus:ring-2 focus:ring-rose-500 focus:ring-offset-1 dark:focus:ring-offset-gray-900">
+              <svg class="w-4 h-4 shrink-0 text-rose-600 dark:text-rose-400 group-hover:text-white dark:group-hover:text-white transition-colors" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+              </svg>
+              <span>Znovu uzamknout</span>
+            </button>
+          </div>
+
+          <!-- HLAVNÍ KARTA S ODEMYKACÍM TLAČÍTKEM -->
+          <div id="legacyDoorCard" class="w-full rounded-3xl border border-gray-200/80 bg-white p-6 sm:p-8 text-center shadow-xs dark:border-gray-800 dark:bg-gray-900 relative overflow-hidden flex flex-col items-center justify-center">
+
+            <div class="inline-flex items-center gap-2 rounded-full border border-gray-200 bg-gray-50 px-3 py-1 text-xs font-medium text-gray-600 dark:border-gray-800 dark:bg-gray-800/60 dark:text-gray-300 mb-4">
+              <span class="h-2 w-2 rounded-full bg-emerald-500" id="doorStatusIndicator"></span>
+              <span id="doorStatusText">Připraveno k odemčení</span>
+            </div>
+
+            <!-- PŮVODNÍ HEZKÉ TLAČÍTKO S KRUHY -->
+            <div class="door-wrapper" id="doorWrapper">
+              <div class="door-ring"></div>
+              <div class="door-ring"></div>
+              <div class="door-ring"></div>
+
+              <button id="doorBtn" class="door-btn-orig" type="button" aria-label="Odemknout dveře">
+                <div class="door-btn-inner">
+                  <div class="door-icon-wrap">
+                    <!-- IKONA ZÁMKU -->
+                    <svg id="svgLocked" class="w-10 h-10 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                      <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                      <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+                    </svg>
+
+                    <!-- IKONA KŘÍŽEK (BLOKOVÁNO) -->
+                    <svg id="svgBlockedCross" class="w-10 h-10 hidden text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round">
+                      <line x1="18" y1="6" x2="6" y2="18"></line>
+                      <line x1="6" y1="6" x2="18" y2="18"></line>
+                    </svg>
+
+                    <!-- IKONA ODEMČENO -->
+                    <svg id="svgUnlocked" class="w-10 h-10 hidden text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                      <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                      <path d="M7 11V7a5 5 0 0 1 9.9-1"></path>
+                    </svg>
+
+                    <!-- SPINNER -->
+                    <svg id="svgSpinner" class="w-10 h-10 hidden animate-spin text-white" viewBox="0 0 24 24" fill="none">
+                      <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                      <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
+                    </svg>
+                  </div>
+
+                  <span class="door-btn-text" id="doorBtnText">ODEMKNOUT</span>
+                  <span class="door-btn-subtext" id="doorBtnSubtext">Spínač 1</span>
+                </div>
+              </button>
+            </div>
+
+            <!-- POPISEK UMÍSTĚNÍ (BEZ DETAILŮ ZAŘÍZENÍ) -->
+            <div class="mt-3 flex items-center justify-center gap-1.5 text-xs text-gray-500 dark:text-gray-400">
+              <svg class="h-3.5 w-3.5 text-brand-500 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="4" y="2" width="16" height="20" rx="2" ry="2"></rect>
+                <line x1="9" y1="22" x2="9" y2="22.01"></line>
+                <path d="M8 6h.01"></path>
+                <path d="M16 6h.01"></path>
+                <path d="M12 6h.01"></path>
+                <path d="M12 10h.01"></path>
+                <path d="M12 14h.01"></path>
+                <path d="M16 10h.01"></path>
+                <path d="M16 14h.01"></path>
+                <path d="M8 10h.01"></path>
+                <path d="M8 14h.01"></path>
+              </svg>
+              <span class="font-medium">Budova Šešule</span>
+            </div>
+
+            <!-- KARTA BLOKOVANÉ SÍTĚ (POKUD NENÍ BYPASS A NENÍ SESULE) -->
+            <div id="networkBlockedCard" class="hidden mt-4 w-full rounded-2xl border border-rose-200 bg-rose-50 p-3 text-left dark:border-rose-900/50 dark:bg-rose-950/20">
+              <div class="flex gap-2.5">
+                <svg class="h-4 w-4 text-rose-600 shrink-0 mt-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <circle cx="12" cy="12" r="10"></circle>
+                  <line x1="12" y1="8" x2="12" y2="12"></line>
+                  <line x1="12" y1="16" x2="12.01" y2="16"></line>
+                </svg>
+                <div>
+                  <h3 class="text-xs font-bold text-rose-800 dark:text-rose-300">Omezeno na síť Šešule</h3>
+                  <p class="text-[11px] text-rose-700 dark:text-rose-400 mt-0.5">
+                    Pro odemčení se připojte k místní Wi-Fi síti.
+                  </p>
+                  <button id="retryProbeBtn" class="mt-2 inline-flex items-center gap-1 rounded-lg bg-rose-600 px-2.5 py-1 text-[11px] font-semibold text-white hover:bg-rose-700">
+                    Ověřit síť znovu
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <!-- JEDINÁ ČISTÁ INFORMAČNÍ LIŠTA: MOJE IP ADRESA A STAV PŘIPOJENÍ -->
+            <div class="mt-4 pt-3 border-t border-gray-100 dark:border-gray-800/80 w-full flex items-center justify-between text-xs text-gray-500">
+              <span>Vaše IP adresa: <strong class="font-mono text-gray-800 dark:text-gray-200" id="tileClientIp">—</strong></span>
+              <span id="tileNetworkStatus" class="font-medium text-emerald-600 dark:text-emerald-400">Ověřeno</span>
+            </div>
+          </div>
+        </section>
+
+        <!-- =================================================================== -->
+        <!-- 2. ZÁLOŽKA: LOG (LOG SYSTÉMU)                                       -->
+        <!-- =================================================================== -->
+        <section id="tab-logs" class="tab-pane hidden max-w-5xl w-full mx-auto space-y-4">
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <h2 class="text-lg font-bold text-gray-900 dark:text-white">Systémový log</h2>
+              <p class="text-xs text-gray-500 dark:text-gray-400">Historie událostí a odemykání dveří</p>
+            </div>
+            <div class="flex items-center gap-2">
+              <label for="logSourceFilter" class="sr-only">Filtrovat záznamy</label>
+              <select id="logSourceFilter" class="max-w-[12rem] rounded-xl border border-gray-200 bg-white px-3 py-1.5 text-xs font-semibold text-gray-700 dark:border-gray-800 dark:bg-gray-900 dark:text-gray-300">
+                <option value="all">Všechny zdroje</option>
+                <option value="system">Systém</option>
+              </select>
+              <button id="refreshLogsBtn" class="inline-flex items-center gap-1.5 rounded-xl border border-gray-200 bg-white px-3 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-50 dark:border-gray-800 dark:bg-gray-900 dark:text-gray-300 dark:hover:bg-gray-800 transition-colors">
+                <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/>
+                </svg>
+                <span>Obnovit</span>
+              </button>
+              <button id="clearLogsBtn" class="inline-flex items-center gap-1.5 rounded-xl border border-rose-200 bg-rose-50 px-3 py-1.5 text-xs font-semibold text-rose-700 hover:bg-rose-100 dark:border-rose-900/50 dark:bg-rose-950/20 dark:text-rose-400 transition-colors">
+                <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <polyline points="3 6 5 6 21 6"></polyline>
+                  <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                </svg>
+                <span>Vymazat</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- TABULKA LOGŮ -->
+          <div class="rounded-2xl border border-gray-200/80 bg-white shadow-xs overflow-hidden dark:border-gray-800 dark:bg-gray-900">
+            <div class="overflow-x-auto max-h-[65vh]">
+              <table class="w-full text-left text-sm">
+                <thead class="sticky top-0 border-b border-gray-100 bg-gray-50/90 text-xs uppercase font-semibold text-gray-500 dark:border-gray-800 dark:bg-gray-800/90 dark:text-gray-400 backdrop-blur-xs">
+                  <tr>
+                    <th scope="col" class="px-4 py-2.5">Čas</th>
+                    <th scope="col" class="px-4 py-2.5">Úroveň</th>
+                    <th scope="col" class="px-4 py-2.5">Zdroj</th>
+                    <th scope="col" class="px-4 py-2.5">Akce</th>
+                    <th scope="col" class="px-4 py-2.5">Podrobnosti</th>
+                  </tr>
+                </thead>
+                <tbody id="logsTableBody" class="divide-y divide-gray-100 dark:divide-gray-800/80 font-mono text-xs">
+                  <tr>
+                    <td colspan="5" class="px-5 py-6 text-center text-gray-400 font-sans">Načítám záznamy...</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <!-- =================================================================== -->
+        <!-- SPRÁVA JEDNOTEK (POUZE ADMIN)                                      -->
+        <!-- =================================================================== -->
+        <section id="tab-units" class="tab-pane hidden max-w-4xl w-full mx-auto space-y-4">
+          <div>
+            <h2 class="text-lg font-bold text-gray-900 dark:text-white">Jednotky 2N</h2>
+            <p class="text-xs text-gray-500 dark:text-gray-400">Přidání jednotky, ověření API a stav aktuálně připojených zařízení.</p>
+          </div>
+
+          <div class="rounded-2xl border border-gray-200/80 bg-white p-5 shadow-xs dark:border-gray-800 dark:bg-gray-900">
+            <h3 class="mb-3 text-sm font-bold text-gray-900 dark:text-white">Přidat jednotku</h3>
+            <form id="addUnitForm" class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <div>
+                <label for="unitNameInput" class="mb-1 block text-xs font-semibold text-gray-600 dark:text-gray-400">Název jednotky</label>
+                <input id="unitNameInput" type="text" maxlength="60" required autocomplete="off" placeholder="např. Hlavní vchod" class="w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-900 focus:border-brand-500 focus:outline-none dark:border-gray-800 dark:bg-gray-800/50 dark:text-white">
+              </div>
+              <div>
+                <label for="unitModelInput" class="mb-1 block text-xs font-semibold text-gray-600 dark:text-gray-400">Typ jednotky 2N</label>
+                <select id="unitModelInput" required class="w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-900 focus:border-brand-500 focus:outline-none dark:border-gray-800 dark:bg-gray-800/50 dark:text-white"></select>
+              </div>
+              <div>
+                <label for="unitIpInput" class="mb-1 block text-xs font-semibold text-gray-600 dark:text-gray-400">IP adresa</label>
+                <input id="unitIpInput" type="text" maxlength="45" required autocomplete="off" inputmode="decimal" placeholder="IP adresa nebo název hostitele" class="w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-900 focus:border-brand-500 focus:outline-none dark:border-gray-800 dark:bg-gray-800/50 dark:text-white">
+              </div>
+              <div>
+                <label for="unitApiUserInput" class="mb-1 block text-xs font-semibold text-gray-600 dark:text-gray-400">Název API účtu</label>
+                <input id="unitApiUserInput" type="text" maxlength="128" required autocomplete="off" class="w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-900 focus:border-brand-500 focus:outline-none dark:border-gray-800 dark:bg-gray-800/50 dark:text-white">
+              </div>
+              <div class="sm:col-span-2">
+                <label for="unitApiPasswordInput" class="mb-1 block text-xs font-semibold text-gray-600 dark:text-gray-400">Heslo API účtu</label>
+                <input id="unitApiPasswordInput" type="password" maxlength="256" required autocomplete="new-password" class="w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-900 focus:border-brand-500 focus:outline-none dark:border-gray-800 dark:bg-gray-800/50 dark:text-white">
+              </div>
+              <div id="addUnitAlert" class="hidden sm:col-span-2 rounded-xl border p-3 text-xs font-medium"></div>
+              <div class="sm:col-span-2 flex justify-end">
+                <button id="addUnitSubmitBtn" type="submit" class="rounded-xl bg-brand-500 px-4 py-2 text-xs font-semibold text-white hover:bg-brand-600 disabled:opacity-60">Ověřit a přidat jednotku</button>
+              </div>
+            </form>
+            <p class="mt-3 text-[11px] leading-relaxed text-gray-500 dark:text-gray-400">Údaje se před uložením ověří přes 2N API; heslo se v databázi ukládá šifrovaně. Stav připojení se obnovuje automaticky každých 15 sekund.</p>
+          </div>
+
+          <div class="rounded-2xl border border-gray-200/80 bg-white p-5 shadow-xs dark:border-gray-800 dark:bg-gray-900">
+            <div class="mb-3 flex items-center justify-between gap-2">
+              <h3 class="text-sm font-bold text-gray-900 dark:text-white">Jednotky připojené k aplikaci</h3>
+              <button id="refreshUnitsBtn" type="button" class="rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800">Obnovit</button>
+            </div>
+            <div id="unitsList" class="space-y-2">
+              <p class="py-4 text-center text-xs text-gray-500">Načítám jednotky…</p>
+            </div>
+          </div>
+        </section>
+
+        <!-- =================================================================== -->
+        <!-- 3. ZÁLOŽKA: INFORMACE (ADMIN / SPRÁVCE)                           -->
+        <!-- =================================================================== -->
+        <section id="tab-info" class="tab-pane hidden max-w-3xl w-full mx-auto space-y-4">
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <h2 class="text-lg font-bold text-gray-900 dark:text-white">Informace o jednotkách 2N</h2>
+              <p class="text-xs text-gray-500 dark:text-gray-400">Přístupné správcům a administrátorům</p>
+            </div>
+            <div class="flex flex-col sm:flex-row gap-2">
+              <select id="infoUnitSelect" class="rounded-xl border border-gray-200 bg-white px-3 py-2 text-xs font-semibold text-gray-700 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200" aria-label="Vybrat jednotku">
+                <option value="">Načítám jednotky…</option>
+              </select>
+              <button id="testConnectionBtn" class="inline-flex items-center gap-1.5 rounded-xl bg-brand-500 px-3.5 py-2 text-xs font-semibold text-white shadow-sm shadow-brand-500/20 hover:bg-brand-600 transition-colors">
+              <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M22 12h-4l-3 9L9 3l-3 9H2"/>
+              </svg>
+              <span id="testConnectionBtnText">Otestovat spojení</span>
+              </button>
+            </div>
+          </div>
+
+          <div id="testConnAlert" class="hidden rounded-2xl border p-3 text-xs font-medium">
+            <p id="testConnMsg"></p>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <!-- SÍŤOVÉ PARAMETRY -->
+            <div class="rounded-2xl border border-gray-200/80 bg-white p-5 dark:border-gray-800 dark:bg-gray-900 shadow-xs space-y-3">
+              <h3 class="text-xs font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                <span class="h-2 w-2 rounded-full bg-brand-500"></span>
+                Síťové parametry jednotky
+              </h3>
+              <dl class="space-y-2 text-xs">
+                <div class="flex justify-between border-b border-gray-100 dark:border-gray-800/60 pb-1.5">
+                  <dt class="text-gray-500">IP adresa jednotky</dt>
+                  <dd class="font-mono font-medium text-gray-900 dark:text-white" id="infoDeviceIp">—</dd>
+                </div>
+                <div class="flex justify-between border-b border-gray-100 dark:border-gray-800/60 pb-1.5">
+                  <dt class="text-gray-500">Protokol & Port</dt>
+                  <dd class="font-mono font-medium text-gray-900 dark:text-white" id="infoProtocolPort">—</dd>
+                </div>
+                <div class="flex justify-between border-b border-gray-100 dark:border-gray-800/60 pb-1.5">
+                  <dt class="text-gray-500">Spínač / Relé</dt>
+                  <dd class="font-medium text-gray-900 dark:text-white" id="infoSwitchId">Spínač 1 (trigger)</dd>
+                </div>
+                <div class="flex justify-between border-b border-gray-100 dark:border-gray-800/60 pb-1.5">
+                  <dt class="text-gray-500">Umístění</dt>
+                  <dd class="font-medium text-gray-900 dark:text-white" id="infoUnitName">—</dd>
+                </div>
+              </dl>
+            </div>
+
+            <!-- API KOMUNIKACE -->
+            <div class="rounded-2xl border border-gray-200/80 bg-white p-5 dark:border-gray-800 dark:bg-gray-900 shadow-xs space-y-3">
+              <h3 class="text-xs font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                <span class="h-2 w-2 rounded-full bg-indigo-500"></span>
+                API komunikace
+              </h3>
+              <dl class="space-y-2 text-xs">
+                <div class="flex justify-between border-b border-gray-100 dark:border-gray-800/60 pb-1.5">
+                  <dt class="text-gray-500">API uživatel</dt>
+                  <dd class="font-mono font-medium text-gray-900 dark:text-white" id="infoApiUser">—</dd>
+                </div>
+                <div class="flex justify-between border-b border-gray-100 dark:border-gray-800/60 pb-1.5">
+                  <dt class="text-gray-500">Autentizace</dt>
+                  <dd class="font-medium text-gray-900 dark:text-white" id="infoAuthType">HTTP Digest Auth</dd>
+                </div>
+                <div class="flex justify-between border-b border-gray-100 dark:border-gray-800/60 pb-1.5">
+                  <dt class="text-gray-500">API stav</dt>
+                  <dd class="font-medium text-gray-500 dark:text-gray-400" id="infoApiStatus">Kontroluji…</dd>
+                </div>
+                <div class="flex justify-between border-b border-gray-100 dark:border-gray-800/60 pb-1.5">
+                  <dt class="text-gray-500">Verze aplikace</dt>
+                  <dd class="font-medium text-emerald-600 dark:text-emerald-400" id="infoAppVersion">0.4b</dd>
+                </div>
+              </dl>
+            </div>
+
+            <!-- HARDWARE A SYSTÉM JEDNOTKY -->
+            <div class="rounded-2xl border border-gray-200/80 bg-white p-5 dark:border-gray-800 dark:bg-gray-900 shadow-xs space-y-3">
+              <h3 class="text-xs font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                <span class="h-2 w-2 rounded-full bg-emerald-500"></span>
+                Identifikace hardware 2N
+              </h3>
+              <dl class="space-y-2 text-xs">
+                <div class="flex justify-between border-b border-gray-100 dark:border-gray-800/60 pb-1.5">
+                  <dt class="text-gray-500">Model zařízení</dt>
+                  <dd class="font-medium text-gray-900 dark:text-white" id="infoDeviceModel">2N Access Unit M</dd>
+                </div>
+                <div class="flex justify-between border-b border-gray-100 dark:border-gray-800/60 pb-1.5">
+                  <dt class="text-gray-500">Sériové číslo</dt>
+                  <dd class="font-mono font-medium text-gray-900 dark:text-white" id="infoSerialNumber">—</dd>
+                </div>
+                <div class="flex justify-between border-b border-gray-100 dark:border-gray-800/60 pb-1.5">
+                  <dt class="text-gray-500">MAC adresa</dt>
+                  <dd class="font-mono font-medium text-gray-900 dark:text-white uppercase" id="infoMacAddress">—</dd>
+                </div>
+                <div class="flex justify-between border-b border-gray-100 dark:border-gray-800/60 pb-1.5">
+                  <dt class="text-gray-500">HW verze</dt>
+                  <dd class="font-mono font-medium text-gray-900 dark:text-white" id="infoHwVersion">—</dd>
+                </div>
+              </dl>
+            </div>
+
+            <!-- FIRMWARE A ZABEZPEČENÍ -->
+            <div class="rounded-2xl border border-gray-200/80 bg-white p-5 dark:border-gray-800 dark:bg-gray-900 shadow-xs space-y-3">
+              <h3 class="text-xs font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                <span class="h-2 w-2 rounded-full bg-blue-500"></span>
+                Firmware & Zabezpečení
+              </h3>
+              <dl class="space-y-2 text-xs">
+                <div class="flex justify-between border-b border-gray-100 dark:border-gray-800/60 pb-1.5">
+                  <dt class="text-gray-500">Verze firmware (SW)</dt>
+                  <dd class="font-mono font-medium text-gray-900 dark:text-white" id="infoSwVersion">—</dd>
+                </div>
+                <div class="flex justify-between border-b border-gray-100 dark:border-gray-800/60 pb-1.5">
+                  <dt class="text-gray-500">Typ balíčku</dt>
+                  <dd class="font-medium text-gray-900 dark:text-white" id="infoFirmwarePackage">accessunitm (release)</dd>
+                </div>
+                <div class="flex justify-between border-b border-gray-100 dark:border-gray-800/60 pb-1.5">
+                  <dt class="text-gray-500">Omezení sítě</dt>
+                  <dd class="font-medium text-gray-900 dark:text-white" id="infoAllowedSubnets">—</dd>
+                </div>
+                <div class="flex justify-between border-b border-gray-100 dark:border-gray-800/60 pb-1.5">
+                  <dt class="text-gray-500">WebAuthn & Push</dt>
+                  <dd class="font-medium text-emerald-600 dark:text-emerald-400">Podporováno</dd>
+                </div>
+              </dl>
+            </div>
+          </div>
+        </section>
+
+        <!-- =================================================================== -->
+        <!-- 4. ZÁLOŽKA: SPRÁVA UŽIVATELŮ (ADMIN / SPRÁVCE)                   -->
+        <!-- =================================================================== -->
+        <section id="tab-users" class="tab-pane hidden max-w-5xl w-full mx-auto space-y-4">
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <h2 class="text-lg font-bold text-gray-900 dark:text-white">Správa uživatelů</h2>
+              <p class="text-xs text-gray-500 dark:text-gray-400">Správa účtů a oprávnění dostupná podle vaší role</p>
+            </div>
+            <button id="openAddUserBtn" class="inline-flex items-center gap-1.5 rounded-xl bg-brand-500 px-3.5 py-2 text-xs font-semibold text-white shadow-sm shadow-brand-500/20 hover:bg-brand-600 transition-colors">
+              <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="12" y1="5" x2="12" y2="19"></line>
+                <line x1="5" y1="12" x2="19" y2="12"></line>
+              </svg>
+              <span>Nový uživatel</span>
+            </button>
+          </div>
+
+          <!-- FORMULÁŘ VYTVOŘENÍ UŽIVATELE -->
+          <div id="addUserCard" class="hidden rounded-2xl border border-gray-200/80 bg-white p-5 dark:border-gray-800 dark:bg-gray-900 shadow-xs">
+            <h3 class="text-xs font-bold text-gray-900 dark:text-white mb-3">Vytvořit nový účet</h3>
+            <form id="addUserForm" class="space-y-3">
+              <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div>
+                  <label for="newUsername" class="block text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1">Jméno</label>
+                  <input type="text" id="newUsername" required placeholder="např. karel" class="w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-xs text-gray-900 focus:border-brand-500 focus:bg-white focus:outline-none dark:border-gray-800 dark:bg-gray-800/50 dark:text-white">
+                </div>
+                <div>
+                  <label for="newPassword" class="block text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1">Heslo</label>
+                  <input type="password" id="newPassword" required placeholder="Min. 8 znaků" class="w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-xs text-gray-900 focus:border-brand-500 focus:bg-white focus:outline-none dark:border-gray-800 dark:bg-gray-800/50 dark:text-white">
+                </div>
+                <div>
+                  <label for="newRole" class="block text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1">Role</label>
+                  <select id="newRole" class="w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-xs text-gray-900 focus:border-brand-500 focus:bg-white focus:outline-none dark:border-gray-800 dark:bg-gray-800/50 dark:text-white">
+                    <option value="user">Uživatel</option>
+                    <option value="správce">Správce</option>
+                    <option value="admin" id="newRoleAdminOption">Administrátor</option>
+                  </select>
+                </div>
+              </div>
+
+              <div id="newUserBypassWrapper" class="flex items-center gap-2.5 pt-1">
+                <label class="clean-switch">
+                  <input type="checkbox" id="newUserBypass">
+                  <span class="clean-slider"></span>
+                </label>
+                <label for="newUserBypass" class="text-xs text-gray-700 dark:text-gray-300 cursor-pointer">
+                  Povolit Network Bypass (odemykání odkudkoliv)
+                </label>
+              </div>
+
+              <div id="addUserAlert" class="hidden rounded-xl border p-2.5 text-xs font-medium"></div>
+
+              <div class="flex items-center justify-end gap-2 pt-1">
+                <button type="button" id="cancelAddUserBtn" class="rounded-xl border border-gray-200 px-3.5 py-1.5 text-xs font-semibold text-gray-600 hover:bg-gray-50 dark:border-gray-800 dark:text-gray-400">
+                  Zrušit
+                </button>
+                <button type="submit" class="rounded-xl bg-brand-500 px-3.5 py-1.5 text-xs font-semibold text-white hover:bg-brand-600">
+                  Vytvořit
+                </button>
+              </div>
+            </form>
+          </div>
+
+          <!-- SEZNAM UŽIVATELŮ — ONE UI 8.5 RESPONZIVNÍ SEZNAM -->
+          <div class="ou-users-wrapper">
+            <div class="ou-users-card">
+              <div id="usersListContainer" class="ou-users-list">
+                <div class="ou-users-loading">
+                  <div class="ou-spinner"></div>
+                  <span>Načítám uživatele...</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- =================================================================== -->
+        <!-- 4a. ZÁLOŽKA: BEZPEČNOSTNÍ KLÍČE                                    -->
+        <!-- =================================================================== -->
+        <section id="tab-keys" class="tab-pane hidden max-w-5xl w-full mx-auto space-y-4">
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <h2 class="text-lg font-bold text-gray-900 dark:text-white">Bezpečnostní klíče</h2>
+              <p class="text-xs text-gray-500 dark:text-gray-400">Registrace čipových karet rozpoznaných jednotkou 2N a nastavení jejich funkce.</p>
+            </div>
+            <button id="openKeyRegistrationBtn" type="button" class="inline-flex items-center gap-2 rounded-xl bg-brand-500 px-3.5 py-2 text-xs font-semibold text-white shadow-sm shadow-brand-500/20 hover:bg-brand-600 transition-colors">
+              <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M12 5v14M5 12h14"/>
+              </svg>
+              <span>Zaregistrovat nový klíč</span>
+            </button>
+          </div>
+
+          <div id="securityKeysList" class="space-y-3">
+            <div class="rounded-2xl border border-gray-200/80 bg-white p-5 text-sm text-gray-500 dark:border-gray-800 dark:bg-gray-900 dark:text-gray-400">Načítám bezpečnostní klíče…</div>
+          </div>
+        </section>
+
+        <!-- =================================================================== -->
+        <!-- 4b. ZÁLOŽKA: TRVALÉ ODEMČENÍ (SPRÁVA & OPRÁVNĚNÍ)                   -->
+        <!-- =================================================================== -->
+        <section id="tab-permanent" class="tab-pane hidden max-w-5xl w-full mx-auto space-y-4">
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <h2 class="text-lg font-bold text-gray-900 dark:text-white">Trvalé odemčení dveří</h2>
+              <p class="text-xs text-gray-500 dark:text-gray-400">Správa oprávnění uživatelů k zablokování zámku v odemčené poloze a časových limitů</p>
+            </div>
+            <button id="refreshPermanentBtn" class="inline-flex items-center gap-1.5 rounded-xl border border-gray-200 bg-white px-3 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-50 dark:border-gray-800 dark:bg-gray-900 dark:text-gray-300 dark:hover:bg-gray-800 transition-colors">
+              <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/>
+              </svg>
+              <span>Obnovit stav</span>
+            </button>
+          </div>
+
+          <!-- KARTA AKTUÁLNÍHO STAVU ZÁMKU -->
+          <div id="permanentStatusCard" class="rounded-2xl border border-gray-200/80 bg-white p-5 dark:border-gray-800 dark:bg-gray-900 shadow-xs">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div class="flex items-start gap-3.5">
+                <div id="permanentStatusBadgeIcon" class="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400">
+                  <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+                    <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                    <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                  </svg>
+                </div>
+                <div>
+                  <div class="flex items-center gap-2">
+                    <span id="permanentStatusDot" class="h-2.5 w-2.5 rounded-full bg-gray-400"></span>
+                    <h3 id="permanentStatusHeader" class="text-sm font-bold text-gray-900 dark:text-white">Zámek v běžném režimu (uzamčeno)</h3>
+                  </div>
+                  <p id="permanentStatusDetail" class="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                    Trvalé odemčení není aktivní. Dveře se po otevření automaticky uzamykají.
+                  </p>
+                </div>
+              </div>
+              <div id="permanentAdminActionWrap" class="flex items-center gap-2">
+                <button id="adminStopPermanentBtn" type="button" class="hidden rounded-xl bg-rose-600 hover:bg-rose-700 active:scale-95 text-white px-3.5 py-2 text-xs font-bold shadow-sm shadow-rose-600/25 transition-all">
+                  Okamžitě uzamknout
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div class="rounded-2xl border border-gray-200/80 bg-white p-5 dark:border-gray-800 dark:bg-gray-900">
+            <h3 class="text-xs font-bold text-gray-900 dark:text-white">Jednotlivá oprávnění</h3>
+            <p class="mt-1 text-xs leading-relaxed text-gray-500 dark:text-gray-400">Oprávnění k trvalému odemčení se spravuje samostatně pro každou jednotku v části Správa uživatelů → Oprávnění → Oprávnění podle jednotky.</p>
+          </div>
+        </section>
+
+        <!-- =================================================================== -->
+        <!-- 5. ZÁLOŽKA: ROZVRH ODEMYKÁNÍ                                       -->
+        <!-- =================================================================== -->
+        <section id="tab-schedule" class="tab-pane hidden w-full mx-auto space-y-5" style="max-width:860px">
+
+          <!-- Header card -->
+          <div class="sched-header-card">
+            <div class="sched-header-icon">
+              <svg class="h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+                <line x1="16" y1="2" x2="16" y2="6"/>
+                <line x1="8" y1="2" x2="8" y2="6"/>
+                <line x1="3" y1="10" x2="21" y2="10"/>
+              </svg>
+            </div>
+            <div>
+              <h2 class="sched-header-title">Rozvrh odemykání</h2>
+              <p class="sched-header-sub">Nastavte povolená časová okna pro každého uživatele</p>
+            </div>
+          </div>
+
+          <!-- User selector -->
+          <div class="sched-card">
+            <label class="sched-label" for="schedUnitSelect">Vyberte jednotku</label>
+            <div class="sched-select-wrap">
+              <select id="schedUnitSelect" class="sched-select">
+                <option value="">— Načítám jednotky… —</option>
+              </select>
+              <svg class="sched-select-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="6 9 12 15 18 9"/>
+              </svg>
+            </div>
+          </div>
+          <div class="sched-card">
+            <label class="sched-label" for="schedUserSelect">
+              <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
+              </svg>
+              Vyberte uživatele
+            </label>
+            <div class="sched-select-wrap">
+              <select id="schedUserSelect" class="sched-select">
+                <option value="">— Načítám uživatele… —</option>
+              </select>
+              <svg class="sched-select-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="6 9 12 15 18 9"/>
+              </svg>
+            </div>
+          </div>
+
+          <!-- Editor (hidden until user selected) -->
+          <div id="schedEditorWrap" class="hidden space-y-5">
+
+            <!-- Quick presets -->
+            <div class="sched-card">
+              <p class="sched-label">
+                <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+                </svg>
+                Rychlé předvolby
+              </p>
+              <div class="sched-presets">
+                <button type="button" class="sched-preset-btn" data-preset="business_week" title="Po–Pá od 08:00 do 17:00">💼 Všední dny (8–17)</button>
+                <button type="button" class="sched-preset-btn" data-preset="all_week" title="Po–Pá celý den (00–24)">📅 Všední dny (celý den)</button>
+                <button type="button" class="sched-preset-btn" data-preset="weekend_all" title="So–Ne celý den (00–24)">🏖 Víkend (celý den)</button>
+                <button type="button" class="sched-preset-btn" data-preset="all_247" title="Všechny dny 24/7">🕛 Všechny dny (24/7)</button>
+                <button type="button" class="sched-preset-btn sched-preset-clear" data-preset="clear" title="Vymazat všechny nastavené hodiny">✕ Vymazat vše</button>
+              </div>
+            </div>
+
+            <!-- Hour time-range quick-pick -->
+            <div class="sched-card">
+              <p class="sched-label">
+                <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/>
+                  <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
+                  <line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/>
+                  <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+                  <circle cx="12" cy="12" r="5"/>
+                </svg>
+                Časový rozsah předvolby
+              </p>
+              <div class="sched-timerange-row">
+                <div class="sched-timerange-group">
+                  <label class="sched-sublabel" for="schedPresetFrom">Od</label>
+                  <input type="time" id="schedPresetFrom" class="sched-time-input" value="06:00">
+                </div>
+                <span class="sched-timerange-dash">–</span>
+                <div class="sched-timerange-group">
+                  <label class="sched-sublabel" for="schedPresetTo">Do</label>
+                  <input type="time" id="schedPresetTo" class="sched-time-input" value="22:00">
+                </div>
+                <div class="sched-timerange-group" style="flex:1;min-width:120px">
+                  <label class="sched-sublabel">Dny</label>
+                  <div class="sched-day-pills" id="schedPresetDays">
+                    <button class="sched-day-pill active" data-day="0">Po</button>
+                    <button class="sched-day-pill active" data-day="1">Út</button>
+                    <button class="sched-day-pill active" data-day="2">St</button>
+                    <button class="sched-day-pill active" data-day="3">Čt</button>
+                    <button class="sched-day-pill active" data-day="4">Pá</button>
+                    <button class="sched-day-pill" data-day="5">So</button>
+                    <button class="sched-day-pill" data-day="6">Ne</button>
+                  </div>
+                </div>
+                <button id="schedApplyRangeBtn" class="sched-apply-btn">Použít</button>
+              </div>
+            </div>
+
+            <!-- Interactive 7×24 grid -->
+            <div class="sched-card sched-card-grid">
+              <div class="sched-grid-header">
+                <p class="sched-label" style="margin:0">
+                  <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/>
+                    <rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/>
+                  </svg>
+                  Interaktivní mřížka (klikněte nebo přetáhněte)
+                </p>
+                <div class="sched-legend">
+                  <span class="sched-legend-dot sched-legend-on"></span><span>Povoleno</span>
+                  <span class="sched-legend-dot sched-legend-off"></span><span>Zakázáno</span>
+                </div>
+              </div>
+              <div class="sched-grid-scroll">
+                <div class="sched-grid" id="schedGrid"></div>
+              </div>
+            </div>
+
+            <!-- Save button -->
+            <div class="sched-save-row">
+              <span id="schedSaveStatus" class="sched-save-status"></span>
+              <button id="schedSaveBtn" class="sched-save-btn">
+                <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
+                  <polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/>
+                </svg>
+                Uložit rozvrh
+              </button>
+            </div>
+
+          </div>
+        </section>
+
+
+      </main>
+    </div>
+  </div>
+
+  <!-- ======================================================================= -->
+  <!-- MODÁLNÍ OKNO: NASTAVENÍ                                                 -->
+  <!-- ======================================================================= -->
+  <div id="settingsModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/60 backdrop-blur-xs transition-opacity duration-300 hidden" role="dialog" aria-modal="true">
+    <div class="w-full max-w-lg rounded-3xl border border-gray-200 bg-white shadow-2xl dark:border-gray-800 dark:bg-gray-900 overflow-hidden">
+      <div class="flex items-center justify-between border-b border-gray-100 px-6 py-4 dark:border-gray-800">
+        <h3 class="text-sm font-bold text-gray-900 dark:text-white flex items-center gap-2">
+          <svg class="h-4 w-4 text-brand-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="3"></circle>
+            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+          </svg>
+          Nastavení účtu
+        </h3>
+        <button id="closeSettingsModalBtn" class="rounded-xl p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-800 dark:hover:text-gray-200">
+          <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>
+      </div>
+
+      <div class="p-5 space-y-4 max-h-[75vh] overflow-y-auto text-xs">
+
+        <!-- 1. PŘEPÍNAČ MOTIVU -->
+        <div class="flex items-center justify-between p-3.5 rounded-2xl border border-gray-100 bg-gray-50/70 dark:border-gray-800 dark:bg-gray-800/40">
+          <div>
+            <h4 class="font-semibold text-gray-900 dark:text-white">Vzhled rozhraní</h4>
+            <p class="text-gray-500 mt-0.5">Světlý / tmavý režim</p>
+          </div>
+          <div class="flex items-center gap-1 p-1 rounded-xl bg-gray-200/80 dark:bg-gray-700/80">
+            <button id="themeLightBtn" class="px-2.5 py-1 font-semibold rounded-lg text-gray-600 hover:text-gray-900 dark:text-gray-300">Světlý</button>
+            <button id="themeDarkBtn" class="px-2.5 py-1 font-semibold rounded-lg text-gray-600 hover:text-gray-900 dark:text-gray-300">Tmavý</button>
+          </div>
+        </div>
+
+        <!-- 2. PUSH OZNÁMENÍ -->
+        <div class="flex items-center justify-between p-3.5 rounded-2xl border border-gray-100 bg-gray-50/70 dark:border-gray-800 dark:bg-gray-800/40">
+          <div>
+            <h4 class="font-semibold text-gray-900 dark:text-white">Push oznámení</h4>
+            <p class="text-gray-500 mt-0.5" id="pushNotificationStatusText">Stav: neaktivní</p>
+          </div>
+          <div class="flex items-center gap-2">
+            <button id="testPushBtn" class="hidden px-2 py-0.5 rounded-lg border border-gray-200 hover:bg-gray-100 dark:border-gray-700 dark:hover:bg-gray-700 font-semibold">Test</button>
+            <label class="clean-switch">
+              <input type="checkbox" id="pushNotificationToggle">
+              <span class="clean-slider"></span>
+            </label>
+          </div>
+        </div>
+
+        <!-- 3. VÝBĚR JEDNOTEK -->
+        <div class="p-3.5 rounded-2xl border border-gray-100 bg-gray-50/70 dark:border-gray-800 dark:bg-gray-800/40">
+          <div>
+            <h4 class="font-semibold text-gray-900 dark:text-white">Zobrazené jednotky</h4>
+            <p class="text-gray-500 mt-0.5">Vybrané jednotky se zobrazí na Home a budou z nich chodit oznámení o zvonění.</p>
+          </div>
+          <div id="userUnitPreferences" class="mt-3 space-y-2">
+            <p class="text-gray-500">Načítám jednotky…</p>
+          </div>
+          <div id="userUnitPreferencesAlert" class="hidden mt-3 rounded-xl border p-2 text-xs font-medium"></div>
+          <div class="mt-3 flex justify-end">
+            <button id="saveUserUnitsBtn" type="button" class="rounded-xl bg-brand-500 px-3.5 py-1.5 text-xs font-semibold text-white hover:bg-brand-600">Uložit výběr</button>
+          </div>
+        </div>
+
+        <!-- 4. OTISK PRSTU -->
+        <div class="flex items-center justify-between p-3.5 rounded-2xl border border-gray-100 bg-gray-50/70 dark:border-gray-800 dark:bg-gray-800/40">
+          <div>
+            <h4 class="font-semibold text-gray-900 dark:text-white">Přihlášení otiskem prstu</h4>
+            <p class="text-gray-500 mt-0.5" id="biometricStatusText">Stav: neaktivní</p>
+          </div>
+          <label class="clean-switch">
+            <input type="checkbox" id="biometricAuthToggle">
+            <span class="clean-slider"></span>
+          </label>
+        </div>
+
+        <!-- 4. ZMĚNA HESLA -->
+        <div class="p-3.5 rounded-2xl border border-gray-100 bg-gray-50/70 dark:border-gray-800 dark:bg-gray-800/40 space-y-3">
+          <div class="flex items-center justify-between">
+            <div>
+              <h4 class="font-semibold text-gray-900 dark:text-white">Změna hesla</h4>
+              <p class="text-gray-500 mt-0.5">Zabezpečení účtu</p>
+            </div>
+            <button id="toggleChangePasswordCardBtn" class="font-semibold text-brand-600 hover:text-brand-700 dark:text-brand-400">
+              Upravit
+            </button>
+          </div>
+
+          <form id="changePasswordForm" class="hidden space-y-2.5 pt-2 border-t border-gray-200/60 dark:border-gray-700/60">
+            <div>
+              <label for="currentPasswordInput" class="block font-semibold text-gray-600 dark:text-gray-400 mb-1">Současné heslo</label>
+              <input type="password" id="currentPasswordInput" required class="w-full rounded-xl border border-gray-200 bg-white px-3 py-1.5 text-xs text-gray-900 focus:border-brand-500 focus:outline-none dark:border-gray-700 dark:bg-gray-900 dark:text-white">
+            </div>
+            <div>
+              <label for="newPassInput" class="block font-semibold text-gray-600 dark:text-gray-400 mb-1">Nové heslo (min. 8 znaků)</label>
+              <input type="password" id="newPassInput" required class="w-full rounded-xl border border-gray-200 bg-white px-3 py-1.5 text-xs text-gray-900 focus:border-brand-500 focus:outline-none dark:border-gray-700 dark:bg-gray-900 dark:text-white">
+            </div>
+            <div>
+              <label for="confirmPassInput" class="block font-semibold text-gray-600 dark:text-gray-400 mb-1">Potvrzení hesla</label>
+              <input type="password" id="confirmPassInput" required class="w-full rounded-xl border border-gray-200 bg-white px-3 py-1.5 text-xs text-gray-900 focus:border-brand-500 focus:outline-none dark:border-gray-700 dark:bg-gray-900 dark:text-white">
+            </div>
+
+            <div id="changePasswordAlert" class="hidden rounded-xl border p-2 text-xs font-medium"></div>
+
+            <div class="flex justify-end pt-1">
+              <button type="submit" id="changePasswordSubmitBtn" class="rounded-xl bg-brand-500 px-3.5 py-1.5 text-xs font-semibold text-white hover:bg-brand-600">
+                Uložit heslo
+              </button>
+            </div>
+          </form>
+        </div>
+
+      </div>
+
+      <div class="border-t border-gray-100 bg-gray-50/50 px-5 py-3 dark:border-gray-800 dark:bg-gray-900/50 flex justify-end">
+        <button id="closeSettingsBottomBtn" class="rounded-xl bg-gray-200 px-3.5 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-300 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700">
+          Zavřít
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ======================================================================= -->
+  <!-- MODÁLNÍ OKNO: REGISTRACE BEZPEČNOSTNÍHO KLÍČE                           -->
+  <!-- ======================================================================= -->
+  <div id="securityKeyRegistrationModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/60 backdrop-blur-xs hidden" role="dialog" aria-modal="true" aria-labelledby="securityKeyModalTitle">
+    <div class="security-key-modal-panel w-full max-w-md rounded-2xl border border-gray-200 bg-white shadow-2xl dark:border-gray-800 dark:bg-gray-900 overflow-hidden">
+      <div class="flex items-center justify-between border-b border-gray-100 px-5 py-4 dark:border-gray-800">
+        <h3 id="securityKeyModalTitle" class="text-sm font-bold text-gray-900 dark:text-white">Registrace bezpečnostního klíče</h3>
+        <button id="closeKeyRegistrationBtn" type="button" class="rounded-lg p-1.5 text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800" aria-label="Zavřít">
+          <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m18 6-12 12M6 6l12 12"/></svg>
+        </button>
+      </div>
+      <div class="space-y-4 p-5">
+        <div id="keyScanStep" class="space-y-4">
+          <p id="keyScanMessage" class="text-sm text-gray-600 dark:text-gray-300">Stiskněte tlačítko a připravte čipovou kartu k přiložení k jednotce.</p>
+          <div>
+            <label for="securityKeyUnit" class="mb-1 block text-xs font-semibold text-gray-600 dark:text-gray-400">Jednotka klíče</label>
+            <select id="securityKeyUnit" required class="w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-900 focus:border-brand-500 focus:outline-none dark:border-gray-800 dark:bg-gray-800/50 dark:text-white">
+              <option value="">Načítám jednotky…</option>
+            </select>
+          </div>
+          <div id="keyScanCountdown" class="key-scan-countdown hidden rounded-xl border p-3 text-center text-sm font-semibold"></div>
+          <div id="keyScanAlert" class="hidden rounded-xl border p-3 text-xs font-medium"></div>
+          <button id="beginKeyScanBtn" type="button" class="w-full rounded-xl bg-brand-500 px-4 py-2.5 text-sm font-semibold text-white hover:bg-brand-600">Zaregistrovat nový klíč</button>
+        </div>
+        <form id="keySetupStep" class="hidden space-y-3">
+          <p class="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm font-medium text-emerald-800 dark:border-emerald-900/60 dark:bg-emerald-950/30 dark:text-emerald-300">Klíč byl úspěšně načten.</p>
+          <div>
+            <label for="securityKeyName" class="mb-1 block text-xs font-semibold text-gray-600 dark:text-gray-400">Název klíče</label>
+            <input id="securityKeyName" type="text" maxlength="60" required autocomplete="off" placeholder="např. Vstupní karta" class="w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-900 focus:border-brand-500 focus:bg-white focus:outline-none dark:border-gray-800 dark:bg-gray-800/50 dark:text-white">
+          </div>
+          <div>
+            <label for="securityKeyAction" class="mb-1 block text-xs font-semibold text-gray-600 dark:text-gray-400">Funkce klíče</label>
+            <select id="securityKeyAction" required class="w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-900 focus:border-brand-500 focus:outline-none dark:border-gray-800 dark:bg-gray-800/50 dark:text-white">
+              <option value="unlock">Odemknout dveře</option>
+              <option value="ring">Spustit zvonění</option>
+              <option value="permanent_toggle">Trvale odemknout / uzamknout</option>
+              <option value="web_block_toggle">Blokovat / povolit webové odemykání</option>
+            </select>
+            <p id="securityKeyActionHelp" class="mt-2 text-xs leading-relaxed text-gray-500 dark:text-gray-400">Přiložení karty krátce odemkne dveře.</p>
+          </div>
+          <div id="keySetupAlert" class="hidden rounded-xl border p-3 text-xs font-medium"></div>
+          <div class="flex justify-end gap-2 pt-2">
+            <button id="cancelKeySetupBtn" type="button" class="rounded-xl border border-gray-200 px-4 py-2 text-xs font-semibold text-gray-600 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800">Zrušit</button>
+            <button id="saveSecurityKeyBtn" type="submit" class="rounded-xl bg-brand-500 px-4 py-2 text-xs font-semibold text-white hover:bg-brand-600">Uložit klíč</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- ======================================================================= -->
+  <!-- MODÁLNÍ OKNO: SPUŠTĚNÍ TRVALÉHO ODEMČENÍ                                 -->
+  <!-- ======================================================================= -->
+  <div id="permanentUnlockModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/60 backdrop-blur-xs transition-opacity duration-300 hidden" role="dialog" aria-modal="true">
+    <div class="w-full max-w-sm rounded-2xl border border-gray-200 bg-white shadow-2xl dark:border-gray-800 dark:bg-gray-900 overflow-hidden">
+      <div class="flex items-center justify-between border-b border-gray-100 px-4 py-3 dark:border-gray-800">
+        <h3 class="text-xs font-bold text-gray-900 dark:text-white flex items-center gap-2">
+          <svg class="h-4 w-4 text-amber-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+            <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+            <path d="M7 11V7a5 5 0 0 1 9.9-1"/>
+          </svg>
+          Trvalé odemčení dveří
+        </h3>
+        <button id="closePermanentModalBtn" type="button" class="rounded-lg p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-800 dark:hover:text-gray-200 cursor-pointer">
+          <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>
+      </div>
+
+      <div class="p-4 space-y-3">
+        <div>
+          <div class="flex items-center justify-between text-xs text-gray-600 dark:text-gray-400 mb-2">
+            <span>Doba trvání:</span>
+            <span class="text-[11px] text-gray-400">Limit: <strong id="modalMaxDurationDisplay" class="text-amber-600 dark:text-amber-400">60 min</strong></span>
+          </div>
+          <div class="grid grid-cols-3 gap-1.5 mb-2.5" id="durationChipsContainer">
+            <!-- dynamicky generováno v JS -->
+          </div>
+          <div class="flex items-center gap-2">
+            <span class="text-xs text-gray-500 whitespace-nowrap">Vlastní:</span>
+            <input type="number" id="customDurationInput" min="1" max="1440" placeholder="" class="flex-1 min-w-0 rounded-xl border border-gray-200 bg-gray-50 px-3 py-1.5 text-xs text-gray-900 focus:border-amber-500 focus:bg-white focus:outline-none dark:border-gray-800 dark:bg-gray-800/50 dark:text-white">
+            <span class="text-[11px] text-gray-400 whitespace-nowrap">min</span>
+          </div>
+        </div>
+
+        <div class="flex items-center justify-end gap-2.5 pt-3 border-t border-gray-200/80 dark:border-gray-700/80">
+          <button type="button" id="cancelPermanentModalBtn" class="rounded-xl border-2 border-gray-300 dark:border-gray-600 px-4 py-2 text-xs font-bold text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 hover:border-gray-400 dark:hover:border-gray-500 transition-all cursor-pointer active:scale-95 focus:outline-none focus:ring-2 focus:ring-gray-400">
+            Zrušit
+          </button>
+          <button type="button" id="confirmPermanentStartBtn" class="inline-flex items-center justify-center gap-2 rounded-xl border-2 border-amber-600 dark:border-amber-400 bg-amber-500 hover:bg-amber-600 active:bg-amber-700 active:scale-95 text-white px-5 py-2 text-xs font-extrabold shadow-md shadow-amber-500/30 dark:shadow-amber-500/50 hover:shadow-lg hover:shadow-amber-500/50 transition-all duration-150 cursor-pointer focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-offset-2 dark:focus:ring-offset-gray-900">
+            <svg class="w-4 h-4 shrink-0 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M5 13l4 4L19 7"/>
+            </svg>
+            <span>Spustit</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ======================================================================= -->
+  <!-- MODÁLNÍ OKNO: NASTAVENÍ OPRÁVNĚNÍ UŽIVATELE (One UI 8.5)               -->
+  <!-- ======================================================================= -->
+  <div id="userPermissionsModal" class="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-gray-900/60 backdrop-blur-xs transition-opacity duration-300 hidden" role="dialog" aria-modal="true">
+    <div class="w-full max-w-xl rounded-3xl border border-gray-200 bg-white shadow-2xl dark:border-gray-800 dark:bg-gray-900 overflow-hidden flex flex-col" style="max-height: min(90vh, 90dvh); display: flex; flex-direction: column;">
+      <!-- HLAVIČKA -->
+      <div class="flex items-center justify-between border-b border-gray-100 px-6 py-4 dark:border-gray-800/80 shrink-0">
+        <div class="flex items-center gap-3">
+          <div class="flex h-10 w-10 items-center justify-center rounded-2xl bg-brand-500 text-white shadow-sm shadow-brand-500/25">
+            <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+            </svg>
+          </div>
+          <div>
+            <h3 class="text-sm font-bold text-gray-900 dark:text-white flex items-center gap-2">
+              Nastavení oprávnění uživatele
+            </h3>
+            <p class="text-xs text-gray-500 dark:text-gray-400">
+              Uživatel: <strong id="permModalUsernameDisplay" class="text-gray-900 dark:text-white font-mono">—</strong>
+              <span id="permModalRoleBadge" class="ml-1 inline-flex items-center rounded-md px-1.5 py-0.2 text-[10px] font-semibold bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300"></span>
+            </p>
+          </div>
+        </div>
+        <button id="closePermModalBtn" type="button" class="rounded-xl p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-800 dark:hover:text-gray-200 cursor-pointer" aria-label="Zavřít">
+          <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>
+      </div>
+
+      <!-- TĚLO MODALU S FORMULÁŘEM -->
+      <form id="userPermissionsForm" class="flex-1 overflow-y-auto p-5 sm:p-6 space-y-4 text-xs" style="min-height: 0; overflow-y: auto;">
+        <input type="hidden" id="permUserId" value="">
+
+        <!-- UPOZORNĚNÍ PRO ZABLOKOVANÝ ÚČET -->
+        <div id="permLockedBanner" class="hidden p-3 rounded-2xl bg-rose-50 border border-rose-200 text-rose-800 dark:bg-rose-950/40 dark:border-rose-900 dark:text-rose-300 flex items-center justify-between gap-3">
+          <div class="flex items-center gap-2">
+            <svg class="h-4 w-4 shrink-0 text-rose-600 dark:text-rose-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="10"/>
+              <line x1="12" y1="8" x2="12" y2="12"/>
+              <line x1="12" y1="16" x2="12.01" y2="16"/>
+            </svg>
+            <span id="permLockedBannerText">Účet je dočasně uzamčen po neúspěšných přihlášeních.</span>
+          </div>
+          <button type="button" id="permUnlockAccountBtn" class="shrink-0 px-2.5 py-1 rounded-lg bg-rose-600 hover:bg-rose-700 text-white font-semibold text-[11px] transition-colors cursor-pointer">
+            Odemknout ihned
+          </button>
+        </div>
+
+        <!-- 1. SEKCE: ROLE & IDENTITA -->
+        <div class="p-3.5 rounded-2xl border border-gray-100 bg-gray-50/70 dark:border-gray-800 dark:bg-gray-800/40 space-y-3">
+          <h4 class="font-bold text-gray-900 dark:text-white uppercase tracking-wider text-[11px] text-gray-500">Základní oprávnění & role</h4>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+            <div>
+              <label for="permRoleSelect" class="block font-semibold text-gray-700 dark:text-gray-300 mb-1">Role v systému</label>
+              <select id="permRoleSelect" class="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-xs text-gray-900 focus:border-brand-500 focus:outline-none dark:border-gray-700 dark:bg-gray-900 dark:text-white">
+                <option value="user">Uživatel (běžný přístup)</option>
+                <option value="správce">Správce (přístup k logům a správě)</option>
+                <option value="admin">Administrátor (plná práva)</option>
+              </select>
+            </div>
+            <div>
+              <label for="permUserNote" class="block font-semibold text-gray-700 dark:text-gray-300 mb-1">Interní poznámka k účtu</label>
+              <input type="text" id="permUserNote" placeholder="např. Správce budovy, brigádník..." class="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-xs text-gray-900 focus:border-brand-500 focus:outline-none dark:border-gray-700 dark:bg-gray-900 dark:text-white">
+            </div>
+          </div>
+        </div>
+
+        <!-- 2. SEKCE: SÍŤ & BYPASS -->
+        <div class="p-3.5 rounded-2xl border border-gray-100 bg-gray-50/70 dark:border-gray-800 dark:bg-gray-800/40 space-y-2">
+          <div class="flex items-center justify-between">
+            <div>
+              <h4 class="font-semibold text-gray-900 dark:text-white">Network Bypass (Vzdálené odemykání)</h4>
+              <p class="text-gray-500 mt-0.5">Povoluje odemknout dveře odkudkoli z internetu bez připojení k Wi-Fi Šešule.</p>
+            </div>
+            <label class="clean-switch shrink-0 ml-3">
+              <input type="checkbox" id="permBypassToggle">
+              <span class="clean-slider"></span>
+            </label>
+          </div>
+        </div>
+
+        <!-- 3. SEKCE: OPRÁVNĚNÍ ODEMYKÁNÍ -->
+        <div class="p-3.5 rounded-2xl border border-gray-100 bg-gray-50/70 dark:border-gray-800 dark:bg-gray-800/40 space-y-2">
+          <div class="flex items-center justify-between">
+            <div>
+              <h4 class="font-semibold text-gray-900 dark:text-white">Povolení odemykat dveře</h4>
+              <p class="text-gray-500 mt-0.5" id="permCanUnlockDesc">Uživateli je povoleno aktivovat relé zámku.</p>
+            </div>
+            <label class="clean-switch shrink-0 ml-3">
+              <input type="checkbox" id="permCanUnlockToggle" checked>
+              <span class="clean-slider"></span>
+            </label>
+          </div>
+          <div id="permCanUnlockWarning" class="hidden p-2 rounded-xl bg-amber-50 border border-amber-200 text-amber-800 dark:bg-amber-950/30 dark:border-amber-900 dark:text-amber-300 text-[11px] font-medium">
+            ⚠️ Odemykání je zakázáno. Uživatel se může přihlásit, ale tlačítko odemčení nebude funkční.
+          </div>
+        </div>
+
+        <div id="permUnitAccessSection" class="p-3.5 rounded-2xl border border-gray-100 bg-gray-50/70 dark:border-gray-800 dark:bg-gray-800/40 space-y-3">
+          <div>
+            <h4 class="font-bold text-gray-900 dark:text-white uppercase tracking-wider text-[11px] text-gray-500">Oprávnění podle jednotky</h4>
+            <p class="text-gray-500 mt-0.5">Nastavení odemykání, bypassu a trvalého odemčení se ukládá samostatně pro každou jednotku.</p>
+          </div>
+          <div id="permUnitAccessList" class="space-y-3">
+            <p class="text-xs text-gray-500">Načítám oprávnění jednotek…</p>
+          </div>
+        </div>
+
+
+        <!-- 6. SEKCE: POLOŽKY BOČNÍHO MENU (NAVIGACE) -->
+        <div class="p-3.5 rounded-2xl border border-gray-100 bg-gray-50/70 dark:border-gray-800 dark:bg-gray-800/40 space-y-3">
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+            <div>
+              <h4 class="font-bold text-gray-900 dark:text-white uppercase tracking-wider text-[11px] text-gray-500">Viditelné položky v bočním menu</h4>
+              <p class="text-gray-500 mt-0.5">Vyberte, které záložky a funkce v bočním panelu tento uživatel uvidí.</p>
+            </div>
+            <div class="flex items-center gap-1.5 shrink-0">
+              <button type="button" id="permMenuDefaultBtn" class="px-2 py-1 text-[10px] font-semibold rounded-lg border border-gray-200 bg-white text-gray-600 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 cursor-pointer">
+                Výchozí pro roli
+              </button>
+              <button type="button" id="permMenuSelectAllBtn" class="px-2 py-1 text-[10px] font-semibold rounded-lg border border-gray-200 bg-white text-gray-600 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 cursor-pointer">
+                Vše
+              </button>
+              <button type="button" id="permMenuHomeOnlyBtn" class="px-2 py-1 text-[10px] font-semibold rounded-lg border border-gray-200 bg-white text-gray-600 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 cursor-pointer">
+                Jen Home
+              </button>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1" id="permSidebarMenuGrid">
+            <!-- Home -->
+            <label class="flex items-center justify-between p-2.5 rounded-xl border border-gray-200/80 bg-white dark:border-gray-700/70 dark:bg-gray-900/90 cursor-pointer hover:border-brand-500/50 transition-colors">
+              <div class="flex items-center gap-2.5">
+                <div class="flex h-7 w-7 items-center justify-center rounded-lg bg-brand-50 text-brand-600 dark:bg-brand-500/10 dark:text-brand-400">
+                  <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+                    <polyline points="9 22 9 12 15 12 15 22"/>
+                  </svg>
+                </div>
+                <div>
+                  <span class="font-bold text-gray-900 dark:text-white text-xs block">Home</span>
+                  <span class="text-[10px] text-gray-500 block">Hlavní obrazovka a odemykání</span>
+                </div>
+              </div>
+              <input type="checkbox" id="permMenu_home" value="home" checked disabled class="h-4 w-4 rounded text-brand-600 focus:ring-brand-500">
+            </label>
+
+            <!-- Log -->
+            <label class="flex items-center justify-between p-2.5 rounded-xl border border-gray-200/80 bg-white dark:border-gray-700/70 dark:bg-gray-900/90 cursor-pointer hover:border-brand-500/50 transition-colors">
+              <div class="flex items-center gap-2.5">
+                <div class="flex h-7 w-7 items-center justify-center rounded-lg bg-blue-50 text-blue-600 dark:bg-blue-500/10 dark:text-blue-400">
+                  <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                    <polyline points="14 2 14 8 20 8"/>
+                    <line x1="16" y1="13" x2="8" y2="13"/>
+                    <line x1="16" y1="17" x2="8" y2="17"/>
+                  </svg>
+                </div>
+                <div>
+                  <span class="font-bold text-gray-900 dark:text-white text-xs block">Log</span>
+                  <span class="text-[10px] text-gray-500 block">Historie událostí a přístupů</span>
+                </div>
+              </div>
+              <input type="checkbox" id="permMenu_logs" value="logs" class="perm-menu-item h-4 w-4 rounded text-brand-600 focus:ring-brand-500">
+            </label>
+
+            <!-- Informace -->
+            <label class="flex items-center justify-between p-2.5 rounded-xl border border-gray-200/80 bg-white dark:border-gray-700/70 dark:bg-gray-900/90 cursor-pointer hover:border-brand-500/50 transition-colors">
+              <div class="flex items-center gap-2.5">
+                <div class="flex h-7 w-7 items-center justify-center rounded-lg bg-amber-50 text-amber-600 dark:bg-amber-500/10 dark:text-amber-400">
+                  <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="10"/>
+                    <path d="M12 16v-4"/>
+                    <path d="M12 8h.01"/>
+                  </svg>
+                </div>
+                <div>
+                  <span class="font-bold text-gray-900 dark:text-white text-xs block">Informace</span>
+                  <span class="text-[10px] text-gray-500 block">Stav 2N jednotky a sítě</span>
+                </div>
+              </div>
+              <input type="checkbox" id="permMenu_info" value="info" class="perm-menu-item h-4 w-4 rounded text-brand-600 focus:ring-brand-500">
+            </label>
+
+            <!-- Správa uživatelů -->
+            <label class="flex items-center justify-between p-2.5 rounded-xl border border-gray-200/80 bg-white dark:border-gray-700/70 dark:bg-gray-900/90 cursor-pointer hover:border-brand-500/50 transition-colors">
+              <div class="flex items-center gap-2.5">
+                <div class="flex h-7 w-7 items-center justify-center rounded-lg bg-purple-50 text-purple-600 dark:bg-purple-500/10 dark:text-purple-400">
+                  <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/>
+                    <circle cx="9" cy="7" r="4"/>
+                    <path d="M22 21v-2a4 4 0 0 0-3-3.87"/>
+                    <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+                  </svg>
+                </div>
+                <div>
+                  <span class="font-bold text-gray-900 dark:text-white text-xs block">Správa uživatelů</span>
+                  <span class="text-[10px] text-gray-500 block">Účty a nastavení oprávnění</span>
+                </div>
+              </div>
+              <input type="checkbox" id="permMenu_users" value="users" class="perm-menu-item h-4 w-4 rounded text-brand-600 focus:ring-brand-500">
+            </label>
+
+            <!-- Trvalé odemčení -->
+            <label class="flex items-center justify-between p-2.5 rounded-xl border border-gray-200/80 bg-white dark:border-gray-700/70 dark:bg-gray-900/90 cursor-pointer hover:border-brand-500/50 transition-colors">
+              <div class="flex items-center gap-2.5">
+                <div class="flex h-7 w-7 items-center justify-center rounded-lg bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400">
+                  <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                    <path d="M7 11V7a5 5 0 0 1 9.9-1"/>
+                    <circle cx="12" cy="16" r="1"/>
+                  </svg>
+                </div>
+                <div>
+                  <span class="font-bold text-gray-900 dark:text-white text-xs block">Trvalé odemčení</span>
+                  <span class="text-[10px] text-gray-500 block">Přepnutí do trvale otevřené polohy</span>
+                </div>
+              </div>
+              <input type="checkbox" id="permMenu_permanent" value="permanent" class="perm-menu-item h-4 w-4 rounded text-brand-600 focus:ring-brand-500">
+            </label>
+
+            <!-- Bezpečnostní klíče -->
+            <label class="flex items-center justify-between p-2.5 rounded-xl border border-gray-200/80 bg-white dark:border-gray-700/70 dark:bg-gray-900/90 cursor-pointer hover:border-brand-500/50 transition-colors">
+              <div class="flex items-center gap-2.5">
+                <div class="flex h-7 w-7 items-center justify-center rounded-lg bg-amber-50 text-amber-600 dark:bg-amber-500/10 dark:text-amber-400">
+                  <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="8" cy="15" r="5"/>
+                    <path d="m21 2-9.6 9.6"/>
+                    <path d="m15.5 7.5 3 3"/>
+                    <path d="m18.5 4.5 3 3"/>
+                  </svg>
+                </div>
+                <div>
+                  <span class="font-bold text-gray-900 dark:text-white text-xs block">Bezpečnostní klíče</span>
+                  <span class="text-[10px] text-gray-500 block">Registrace a správa čipových karet</span>
+                </div>
+              </div>
+              <input type="checkbox" id="permMenu_keys" value="keys" class="perm-menu-item h-4 w-4 rounded text-brand-600 focus:ring-brand-500">
+            </label>
+
+            <!-- Rozvrh -->
+            <label class="flex items-center justify-between p-2.5 rounded-xl border border-gray-200/80 bg-white dark:border-gray-700/70 dark:bg-gray-900/90 cursor-pointer hover:border-brand-500/50 transition-colors">
+              <div class="flex items-center gap-2.5">
+                <div class="flex h-7 w-7 items-center justify-center rounded-lg bg-rose-50 text-rose-600 dark:bg-rose-500/10 dark:text-rose-400">
+                  <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+                    <line x1="16" y1="2" x2="16" y2="6"/>
+                    <line x1="8" y1="2" x2="8" y2="6"/>
+                    <line x1="3" y1="10" x2="21" y2="10"/>
+                  </svg>
+                </div>
+                <div>
+                  <span class="font-bold text-gray-900 dark:text-white text-xs block">Rozvrh</span>
+                  <span class="text-[10px] text-gray-500 block">Plánovač a časový harmonogram</span>
+                </div>
+              </div>
+              <input type="checkbox" id="permMenu_schedule" value="schedule" class="perm-menu-item h-4 w-4 rounded text-brand-600 focus:ring-brand-500">
+            </label>
+          </div>
+        </div>
+
+        <!-- 7. SEKCE: OPRÁVNĚNÍ KE SPRÁVĚ JINÝCH UŽIVATELŮ -->
+        <div class="p-3.5 rounded-2xl border border-gray-100 bg-gray-50/70 dark:border-gray-800 dark:bg-gray-800/40 space-y-3" id="permManagementSection">
+          <div class="flex items-center justify-between">
+            <div>
+              <div class="flex items-center gap-2">
+                <h4 class="font-bold text-gray-900 dark:text-white uppercase tracking-wider text-[11px] text-gray-500">Správa ostatních uživatelů</h4>
+                <span class="inline-flex items-center rounded-md bg-purple-50 px-1.5 py-0.5 text-[10px] font-semibold text-purple-700 dark:bg-purple-500/10 dark:text-purple-400">Oprávnění</span>
+              </div>
+              <p class="text-gray-500 mt-0.5">Umožňuje tomuto účtu spravovat jiné uživatele a měnit jejich nastavení.</p>
+            </div>
+            <label class="clean-switch shrink-0 ml-3">
+              <input type="checkbox" id="permCanManageUsersToggle">
+              <span class="clean-slider"></span>
+            </label>
+          </div>
+
+          <!-- DETAILNÍ PODVOLBY SPRÁVY -->
+          <div id="permManagementSubConfigWrapper" class="pt-2.5 border-t border-gray-200/60 dark:border-gray-700/60 space-y-2 hidden">
+            <p class="text-[11px] font-semibold text-gray-700 dark:text-gray-300">
+              Co konkrétně smí tento uživatel měnit u ostatních účtů:
+            </p>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+              <label class="flex items-center gap-2 p-2 rounded-xl bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 cursor-pointer">
+                <input type="checkbox" id="permMgmt_role" class="h-3.5 w-3.5 rounded text-brand-600 focus:ring-brand-500">
+                <span class="text-[11px] text-gray-700 dark:text-gray-300">Změna role uživatelů</span>
+              </label>
+
+              <label class="flex items-center gap-2 p-2 rounded-xl bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 cursor-pointer">
+                <input type="checkbox" id="permMgmt_bypass" class="h-3.5 w-3.5 rounded text-brand-600 focus:ring-brand-500">
+                <span class="text-[11px] text-gray-700 dark:text-gray-300">Síťový bypass (mimo Wi-Fi)</span>
+              </label>
+
+              <label class="flex items-center gap-2 p-2 rounded-xl bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 cursor-pointer">
+                <input type="checkbox" id="permMgmt_unlock" class="h-3.5 w-3.5 rounded text-brand-600 focus:ring-brand-500">
+                <span class="text-[11px] text-gray-700 dark:text-gray-300">Povolení odemykat dveře</span>
+              </label>
+
+              <label class="flex items-center gap-2 p-2 rounded-xl bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 cursor-pointer">
+                <input type="checkbox" id="permMgmt_permanent" class="h-3.5 w-3.5 rounded text-brand-600 focus:ring-brand-500">
+                <span class="text-[11px] text-gray-700 dark:text-gray-300">Trvalé odemčení & limity</span>
+              </label>
+
+              <label class="flex items-center gap-2 p-2 rounded-xl bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 cursor-pointer">
+                <input type="checkbox" id="permMgmt_time" class="h-3.5 w-3.5 rounded text-brand-600 focus:ring-brand-500">
+                <span class="text-[11px] text-gray-700 dark:text-gray-300">Časová omezení & dny</span>
+              </label>
+
+              <label class="flex items-center gap-2 p-2 rounded-xl bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 cursor-pointer">
+                <input type="checkbox" id="permMgmt_menu" class="h-3.5 w-3.5 rounded text-brand-600 focus:ring-brand-500">
+                <span class="text-[11px] text-gray-700 dark:text-gray-300">Položky bočního menu</span>
+              </label>
+
+              <label class="flex items-center gap-2 p-2 rounded-xl bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 cursor-pointer">
+                <input type="checkbox" id="permMgmt_note" class="h-3.5 w-3.5 rounded text-brand-600 focus:ring-brand-500">
+                <span class="text-[11px] text-gray-700 dark:text-gray-300">Interní poznámka</span>
+              </label>
+
+              <label class="flex items-center gap-2 p-2 rounded-xl bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 cursor-pointer">
+                <input type="checkbox" id="permMgmt_disabled" class="h-3.5 w-3.5 rounded text-brand-600 focus:ring-brand-500">
+                <span class="text-[11px] text-gray-700 dark:text-gray-300">Deaktivace / aktivace účtu</span>
+              </label>
+
+              <label class="flex items-center gap-2 p-2 rounded-xl bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 cursor-pointer">
+                <input type="checkbox" id="permMgmt_password" class="h-3.5 w-3.5 rounded text-brand-600 focus:ring-brand-500">
+                <span class="text-[11px] text-gray-700 dark:text-gray-300">Vynucení nového hesla</span>
+              </label>
+
+              <label class="flex items-center gap-2 p-2 rounded-xl bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 cursor-pointer">
+                <input type="checkbox" id="permMgmt_delete" class="h-3.5 w-3.5 rounded text-brand-600 focus:ring-brand-500">
+                <span class="text-[11px] text-gray-700 dark:text-gray-300">Mazání uživatelů</span>
+              </label>
+            </div>
+          </div>
+        </div>
+
+        <!-- 8. SEKCE: KRITICKÉ AKCE (ČERVENÁ VÝSTRAŽNÁ ZÓNA - VYSOKÝ DOPAD) -->
+        <div class="p-4 rounded-2xl border-2 border-rose-200 bg-rose-50/40 dark:border-rose-900/60 dark:bg-rose-950/20 space-y-3.5">
+          <div class="flex items-center gap-2">
+            <span class="flex h-5 w-5 items-center justify-center rounded-full bg-rose-100 text-rose-600 dark:bg-rose-900/60 dark:text-rose-400">
+              <svg class="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+                <line x1="12" y1="9" x2="12" y2="13"/>
+                <line x1="12" y1="17" x2="12.01" y2="17"/>
+              </svg>
+            </span>
+            <h4 class="font-bold text-rose-700 dark:text-rose-400 uppercase tracking-wider text-[11px]">
+              Akce s vysokým dopadem (Bezpečnostní výstraha)
+            </h4>
+          </div>
+
+          <!-- A) DEAKTIVACE / POZASTAVENÍ ÚČTU -->
+          <div class="flex items-center justify-between p-3 rounded-xl bg-white/90 dark:bg-gray-900/90 border border-rose-200 dark:border-rose-900/50">
+            <div>
+              <div class="flex items-center gap-2">
+                <span class="font-bold text-gray-900 dark:text-white">Pozastavit / Deaktivovat účet</span>
+                <span id="permDeactivatedBadge" class="hidden rounded-full bg-rose-100 px-2 py-0.5 text-[10px] font-bold text-rose-700 dark:bg-rose-900/60 dark:text-rose-300">
+                  DEAKTIVOVÁN
+                </span>
+              </div>
+              <p class="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5">
+                Okamžitě zabrání uživateli v přihlášení a zakáže jakékoli odemykání.
+              </p>
+            </div>
+            <label class="clean-switch clean-switch-danger shrink-0 ml-3">
+              <input type="checkbox" id="permDisabledToggle">
+              <span class="clean-slider"></span>
+            </label>
+          </div>
+
+          <!-- B) VYNUCENÁ ZMĚNA HESLA -->
+          <div class="p-3 rounded-xl bg-white/90 dark:bg-gray-900/90 border border-rose-200 dark:border-rose-900/50 space-y-1.5">
+            <div class="flex items-center justify-between">
+              <label for="permNewPassword" class="font-bold text-gray-900 dark:text-white flex items-center gap-1.5">
+                <svg class="h-3.5 w-3.5 text-rose-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                  <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                </svg>
+                Vynutit nové heslo uživateli
+              </label>
+              <span class="text-[10px] text-rose-600 dark:text-rose-400 font-semibold">Přepíše stávající heslo</span>
+            </div>
+            <input type="password" id="permNewPassword" placeholder="Zadejte nové heslo (min. 8 znaků) nebo nechte prázdné"
+              class="w-full rounded-xl border border-gray-200 bg-white px-3 py-1.5 text-xs text-gray-900 focus:border-rose-500 focus:outline-none dark:border-gray-700 dark:bg-gray-900 dark:text-white">
+          </div>
+
+          <!-- C) TRVALÉ SMAZÁNÍ ÚČTU -->
+          <div id="permModalDeleteRow" class="flex items-center justify-between pt-1">
+            <div>
+              <span class="font-bold text-rose-700 dark:text-rose-400 block text-xs">Trvalé smazání účtu</span>
+              <span class="text-[10px] text-gray-500 dark:text-gray-400">Nenávratně smaže uživatele ze systému.</span>
+            </div>
+            <button type="button" id="permModalDeleteBtn" class="shrink-0 inline-flex items-center gap-1.5 rounded-xl border border-rose-300 bg-rose-600 px-3 py-1.5 text-xs font-bold text-white shadow-xs hover:bg-rose-700 transition-colors cursor-pointer">
+              <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+              <span>Smazat uživatele</span>
+            </button>
+          </div>
+        </div>
+
+        <div id="permModalAlert" class="hidden rounded-xl border p-2.5 text-xs font-medium"></div>
+      </form>
+
+      <!-- PATIČKA MODALU S TLAČÍTKY -->
+      <div class="border-t border-gray-100 bg-gray-50/70 px-6 py-3.5 dark:border-gray-800/80 dark:bg-gray-900/70 flex items-center justify-between shrink-0">
+        <span class="text-[11px] text-gray-400" id="permModalFooterHint">Změny se aplikují okamžitě</span>
+        <div class="flex items-center gap-2">
+          <button type="button" id="cancelPermModalBtn" class="rounded-full border border-gray-200 px-4 py-2 text-xs font-semibold text-gray-700 hover:bg-gray-100 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800 transition-colors cursor-pointer">
+            Zrušit
+          </button>
+          <button type="button" id="savePermModalBtn" class="inline-flex items-center gap-1.5 rounded-full bg-brand-500 px-5 py-2 text-xs font-bold text-white shadow-md shadow-brand-500/25 hover:bg-brand-600 transition-all cursor-pointer">
+            <span>Uložit nastavení</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <style>
+    /* Pulsování hlavního velkého tlačítka při trvalém odemčení */
+    .door-btn-orig.permanent {
+      background: radial-gradient(circle at 35% 35%, #f59e0b, #d97706 50%, #b45309) !important;
+      box-shadow: 0 0 65px rgba(245, 158, 11, 0.65), inset 0 -4px 12px rgba(0, 0, 0, 0.4) !important;
+      animation: 2s ease-in-out infinite alternate btn-permanent-pulse !important;
+    }
+    .door-wrapper.permanent .door-ring {
+      border-color: #f59e0b !important;
+    }
+    @keyframes btn-permanent-pulse {
+      0% { transform: scale(0.98); box-shadow: 0 0 40px rgba(245, 158, 11, 0.45); }
+      100% { transform: scale(1.02); box-shadow: 0 0 75px rgba(245, 158, 11, 0.85); }
+    }
+
+    /* 1. Tlačítko: Trvalé odemčení pod zámkem */
+    #btnStartPermanent {
+      background-color: #fffbeb !important;
+      border: 2px solid #d97706 !important;
+      color: #92400e !important;
+      box-shadow: 0 2px 5px rgba(217, 119, 6, 0.15) !important;
+      transition: all 0.15s ease-in-out !important;
+    }
+    #btnStartPermanent svg {
+      color: #b45309 !important;
+      transition: color 0.15s ease-in-out !important;
+    }
+    #btnStartPermanent:hover {
+      background-color: #f59e0b !important;
+      border-color: #d97706 !important;
+      color: #ffffff !important;
+      box-shadow: 0 4px 12px rgba(245, 158, 11, 0.35) !important;
+    }
+    #btnStartPermanent:hover svg {
+      color: #ffffff !important;
+    }
+    #btnStartPermanent:active {
+      transform: scale(0.96);
+      background-color: #d97706 !important;
+    }
+
+    /* Tmavý režim pro Trvalé odemčení */
+    .dark #btnStartPermanent {
+      background-color: rgba(245, 158, 11, 0.18) !important;
+      border: 2px solid #fbbf24 !important;
+      color: #fde68a !important;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3) !important;
+    }
+    .dark #btnStartPermanent svg {
+      color: #fbbf24 !important;
+    }
+    .dark #btnStartPermanent:hover {
+      background-color: #f59e0b !important;
+      border-color: #fde68a !important;
+      color: #ffffff !important;
+      box-shadow: 0 4px 16px rgba(245, 158, 11, 0.45) !important;
+    }
+    .dark #btnStartPermanent:hover svg {
+      color: #ffffff !important;
+    }
+
+    /* 2. Tlačítko: Znovu uzamknout pod zámkem */
+    #btnStopPermanent {
+      background-color: #fff1f2 !important;
+      border: 2px solid #e11d48 !important;
+      color: #9f1239 !important;
+      box-shadow: 0 2px 5px rgba(225, 29, 72, 0.15) !important;
+      transition: all 0.15s ease-in-out !important;
+    }
+    #btnStopPermanent svg {
+      color: #e11d48 !important;
+      transition: color 0.15s ease-in-out !important;
+    }
+    #btnStopPermanent:hover {
+      background-color: #f43f5e !important;
+      border-color: #e11d48 !important;
+      color: #ffffff !important;
+      box-shadow: 0 4px 12px rgba(244, 63, 94, 0.35) !important;
+    }
+    #btnStopPermanent:hover svg {
+      color: #ffffff !important;
+    }
+    #btnStopPermanent:active {
+      transform: scale(0.96);
+      background-color: #e11d48 !important;
+    }
+
+    /* Tmavý režim pro Znovu uzamknout */
+    .dark #btnStopPermanent {
+      background-color: rgba(244, 63, 94, 0.18) !important;
+      border: 2px solid #fb7185 !important;
+      color: #fecdd3 !important;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3) !important;
+    }
+    .dark #btnStopPermanent svg {
+      color: #fb7185 !important;
+    }
+    .dark #btnStopPermanent:hover {
+      background-color: #f43f5e !important;
+      border-color: #fecdd3 !important;
+      color: #ffffff !important;
+      box-shadow: 0 4px 16px rgba(244, 63, 94, 0.45) !important;
+    }
+    .dark #btnStopPermanent:hover svg {
+      color: #ffffff !important;
+    }
+
+    /* 3. Tlačítko: SPUSTIT v modalu */
+    #confirmPermanentStartBtn {
+      background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%) !important;
+      border: 2px solid #b45309 !important;
+      color: #ffffff !important;
+      font-weight: 800 !important;
+      box-shadow: 0 4px 14px rgba(217, 119, 6, 0.4) !important;
+      transition: all 0.15s ease-in-out !important;
+      cursor: pointer !important;
+    }
+    #confirmPermanentStartBtn svg {
+      color: #ffffff !important;
+      stroke: #ffffff !important;
+    }
+    #confirmPermanentStartBtn:hover {
+      background: linear-gradient(135deg, #d97706 0%, #b45309 100%) !important;
+      border-color: #92400e !important;
+      box-shadow: 0 6px 18px rgba(217, 119, 6, 0.55) !important;
+    }
+    #confirmPermanentStartBtn:active {
+      transform: scale(0.95);
+    }
+
+    /* Tmavý režim pro SPUSTIT */
+    .dark #confirmPermanentStartBtn {
+      background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%) !important;
+      border: 2px solid #fcd34d !important;
+      color: #ffffff !important;
+      box-shadow: 0 4px 18px rgba(245, 158, 11, 0.45) !important;
+    }
+    .dark #confirmPermanentStartBtn:hover {
+      background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%) !important;
+      border-color: #ffffff !important;
+      box-shadow: 0 6px 24px rgba(245, 158, 11, 0.65) !important;
+    }
+
+    /* 4. Tlačítko: ZRUŠIT v modalu */
+    #cancelPermanentModalBtn {
+      background-color: #ffffff !important;
+      border: 2px solid #d1d5db !important;
+      color: #374151 !important;
+      font-weight: 700 !important;
+      transition: all 0.15s ease-in-out !important;
+      cursor: pointer !important;
+    }
+    #cancelPermanentModalBtn:hover {
+      background-color: #f3f4f6 !important;
+      border-color: #9ca3af !important;
+      color: #111827 !important;
+    }
+    #cancelPermanentModalBtn:active {
+      transform: scale(0.95);
+    }
+
+    /* Tmavý režim pro ZRUŠIT */
+    .dark #cancelPermanentModalBtn {
+      background-color: #1f2937 !important;
+      border: 2px solid #4b5563 !important;
+      color: #e5e7eb !important;
+    }
+    .dark #cancelPermanentModalBtn:hover {
+      background-color: #374151 !important;
+      border-color: #6b7280 !important;
+      color: #ffffff !important;
+    }
+
+    /* 5. Chipy s dobou trvání */
+    .duration-chip {
+      background-color: #f9fafb !important;
+      border: 2px solid #e5e7eb !important;
+      color: #374151 !important;
+      font-weight: 600 !important;
+      transition: all 0.15s ease-in-out !important;
+    }
+    .duration-chip:hover {
+      background-color: #fffbeb !important;
+      border-color: #f59e0b !important;
+      color: #d97706 !important;
+    }
+    .duration-chip.active {
+      background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%) !important;
+      color: #ffffff !important;
+      border: 2px solid #b45309 !important;
+      font-weight: 800 !important;
+      box-shadow: 0 2px 8px rgba(217, 119, 6, 0.35) !important;
+    }
+
+    /* Tmavý režim pro chipy */
+    .dark .duration-chip {
+      background-color: #111827 !important;
+      border: 2px solid #374151 !important;
+      color: #e5e7eb !important;
+    }
+    .dark .duration-chip:hover {
+      background-color: rgba(245, 158, 11, 0.15) !important;
+      border-color: #fbbf24 !important;
+      color: #fde68a !important;
+    }
+    .dark .duration-chip.active {
+      background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%) !important;
+      color: #ffffff !important;
+      border: 2px solid #fcd34d !important;
+      box-shadow: 0 2px 12px rgba(245, 158, 11, 0.4) !important;
+    }
+
+    /* 6. Vlastní input v modalu */
+    #customDurationInput {
+      border: 2px solid #d1d5db !important;
+      background-color: #ffffff !important;
+      color: #111827 !important;
+    }
+    #customDurationInput:focus {
+      border-color: #f59e0b !important;
+      outline: none !important;
+      box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.2) !important;
+    }
+    .dark #customDurationInput {
+      border: 2px solid #4b5563 !important;
+      background-color: #1f2937 !important;
+      color: #f9fafb !important;
+    }
+    .dark #customDurationInput:focus {
+      border-color: #fbbf24 !important;
+      box-shadow: 0 0 0 3px rgba(251, 191, 36, 0.25) !important;
+    }
+    #customDurationInput.active,
+    .dark #customDurationInput.active {
+      background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%) !important;
+      border-color: #fcd34d !important;
+      color: #ffffff !important;
+      box-shadow: 0 2px 12px rgba(245, 158, 11, 0.4) !important;
+    }
+  </style>
+
+  <!-- UPTIME KUMA STYL OZNÁMENÍ (TOAST KONTEJNER) -->
+  <div id="kumaToastContainer" aria-live="polite"></div>
+
+  <script src="/app.js?v=20261105_11"></script>
+</body>
+</html>

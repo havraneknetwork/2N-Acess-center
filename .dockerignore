@@ -1,0 +1,11 @@
+.env
+.env.*
+!.env.example
+.git/
+data/
+__pycache__/
+*.py[cod]
+*.db
+*.db-*
+*.pem
+.pytest_cache/

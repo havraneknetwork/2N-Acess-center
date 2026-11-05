@@ -1,0 +1,28 @@
+services:
+  door-unlocker-dev:
+    build: .
+    container_name: door-unlocker-dev
+    restart: unless-stopped
+    ports:
+    - "${HOST_BIND_IP:?Set HOST_BIND_IP in .env}:3091:5000"
+    volumes:
+    - ./data:/app/data
+    - ./app.py:/app/app.py
+    - ./config.py:/app/config.py
+    - ./auth.py:/app/auth.py
+    - ./permissions_config.py:/app/permissions_config.py
+    - ./static:/app/static
+    env_file:
+    - .env
+    mem_limit: 256m
+    cpus: 0.25
+    security_opt:
+    - no-new-privileges:true
+    networks:
+    - proxy-public
+    labels:
+    - traefik.enable=false
+    - app.manageable=true
+networks:
+  proxy-public:
+    external: true
