@@ -27,6 +27,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const navTabBtns = document.querySelectorAll('.nav-tab-btn');
   const tabPanes = document.querySelectorAll('.tab-pane');
   let unitsStatusRefreshInterval = null;
+  let ntpStatusRefreshInterval = null;
   const pageHeaderTitle = document.getElementById('pageHeaderTitle');
 
   const navHomeBtn = document.getElementById('navHomeBtn');
@@ -37,6 +38,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const navUnitsBtn = document.getElementById('navUnitsBtn');
   const navPermanentBtn = document.getElementById('navPermanentBtn');
   const navScheduleBtn = document.getElementById('navScheduleBtn');
+  const navGlobalSettingsBtn = document.getElementById('navGlobalSettingsBtn');
   const securityKeysList = document.getElementById('securityKeysList');
   const keyRegistrationModal = document.getElementById('securityKeyRegistrationModal');
   const openKeyRegistrationBtn = document.getElementById('openKeyRegistrationBtn');
@@ -124,6 +126,13 @@ document.addEventListener('DOMContentLoaded', () => {
   const addUnitSubmitBtn = document.getElementById('addUnitSubmitBtn');
   const unitsList = document.getElementById('unitsList');
   const refreshUnitsBtn = document.getElementById('refreshUnitsBtn');
+  const ntpSettingsForm = document.getElementById('ntpSettingsForm');
+  const ntpServerInput = document.getElementById('ntpServerInput');
+  const ntpSettingsAlert = document.getElementById('ntpSettingsAlert');
+  const ntpStatus = document.getElementById('ntpStatus');
+  const ntpLastSync = document.getElementById('ntpLastSync');
+  const saveNtpBtn = document.getElementById('saveNtpBtn');
+  const disableNtpBtn = document.getElementById('disableNtpBtn');
   const userUnitPreferences = document.getElementById('userUnitPreferences');
   const userUnitPreferencesAlert = document.getElementById('userUnitPreferencesAlert');
   const saveUserUnitsBtn = document.getElementById('saveUserUnitsBtn');
@@ -339,7 +348,8 @@ document.addEventListener('DOMContentLoaded', () => {
     users: 'Správa uživatelů',
     keys: 'Bezpečnostní klíče',
     permanent: 'Trvalé odemčení',
-    schedule: 'Rozvrh'
+    schedule: 'Rozvrh',
+    'global-settings': 'Globální nastavení'
   };
 
   // Mapování: interní tab-name → URL path segment
@@ -351,7 +361,8 @@ document.addEventListener('DOMContentLoaded', () => {
     users: '/users',
     keys: '/keys',
     permanent: '/permanent',
-    schedule: '/schedule'
+    schedule: '/schedule',
+    'global-settings': '/global-settings'
   };
 
   // Mapování: URL path segment → interní tab-name
@@ -365,7 +376,8 @@ document.addEventListener('DOMContentLoaded', () => {
     '/users': 'users',
     '/keys': 'keys',
     '/permanent': 'permanent',
-    '/schedule': 'schedule'
+    '/schedule': 'schedule',
+    '/global-settings': 'global-settings'
   };
 
   /** Vrátí tab-name pro aktuální URL pathname, nebo 'home' jako fallback. */
@@ -377,7 +389,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const isElevated = (currentUserRole === 'admin' || currentUserRole === 'správce' || currentUserCanManageUsers);
     const menu = (currentUserSidebarMenu && Array.isArray(currentUserSidebarMenu) && currentUserSidebarMenu.length > 0)
       ? currentUserSidebarMenu
-      : (isElevated ? ['home', 'logs', 'info', 'users', 'keys', 'permanent', 'schedule'] : ['home']);
+      : (isElevated ? ['home', 'logs', 'info', 'users', 'keys', 'permanent', 'schedule', 'global-settings'] : ['home']);
 
     if (navHomeBtn) {
       const show = menu.includes('home');
@@ -418,6 +430,11 @@ document.addEventListener('DOMContentLoaded', () => {
       const show = menu.includes('schedule');
       navScheduleBtn.classList.toggle('hidden', !show);
       navScheduleBtn.style.display = show ? 'flex' : 'none';
+    }
+    if (navGlobalSettingsBtn) {
+      const show = currentUserRole === 'admin';
+      navGlobalSettingsBtn.classList.toggle('hidden', !show);
+      navGlobalSettingsBtn.style.display = show ? 'flex' : 'none';
     }
   }
 
@@ -696,14 +713,18 @@ document.addEventListener('DOMContentLoaded', () => {
     const isAdmin = currentUserRole === 'admin';
     const menu = (currentUserSidebarMenu && Array.isArray(currentUserSidebarMenu) && currentUserSidebarMenu.length > 0)
       ? currentUserSidebarMenu
-      : (isElevated ? ['home', 'logs', 'info', 'users', 'keys', 'permanent', 'schedule'] : ['home']);
+      : (isElevated ? ['home', 'logs', 'info', 'users', 'keys', 'permanent', 'schedule', 'global-settings'] : ['home']);
 
-    if (!menu.includes(tabName) && !(tabName === 'units' && isAdmin)) {
+    if (!menu.includes(tabName) && !(isAdmin && ['units', 'global-settings'].includes(tabName))) {
       showToast('Na tuto akci nemáte právo. Obraťte se na správce systému.', 'error');
       tabName = menu.includes('home') ? 'home' : (menu[0] || 'home');
     }
     if (tabName === 'units' && !isAdmin) {
       showToast('Správa jednotek je dostupná pouze administrátorovi.', 'error');
+      tabName = menu.includes('home') ? 'home' : (menu[0] || 'home');
+    }
+    if (tabName === 'global-settings' && !isAdmin) {
+      showToast('Globální nastavení je dostupné pouze administrátorovi.', 'error');
       tabName = menu.includes('home') ? 'home' : (menu[0] || 'home');
     }
     if (tabName === 'keys' && !isElevated) {
@@ -761,6 +782,14 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     if (tabName === 'schedule') {
       initScheduleTab();
+    }
+    if (tabName === 'global-settings') {
+      loadGlobalSettings();
+      if (!ntpStatusRefreshInterval) {
+        ntpStatusRefreshInterval = window.setInterval(() => {
+          if (window.location.pathname === tabToPath['global-settings']) loadGlobalSettings();
+        }, 30000);
+      }
     }
   }
 
@@ -1817,6 +1846,85 @@ document.addEventListener('DOMContentLoaded', () => {
     } catch (error) {
       unitsList.textContent = error.message || 'Chyba při načítání jednotek.';
     }
+  }
+
+  function setNtpAlert(message, type = 'error') {
+    if (!ntpSettingsAlert) return;
+    const styles = {
+      success: 'rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-xs font-medium text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/30 dark:text-emerald-300',
+      warning: 'rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs font-medium text-amber-700 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-300',
+      error: 'rounded-xl border border-rose-200 bg-rose-50 p-3 text-xs font-medium text-rose-700 dark:border-rose-900/60 dark:bg-rose-950/30 dark:text-rose-300'
+    };
+    ntpSettingsAlert.textContent = message;
+    ntpSettingsAlert.className = styles[type] || styles.error;
+  }
+
+  function renderNtpStatus(data) {
+    if (!ntpStatus || !ntpLastSync) return;
+    if (!data.ntp_server) {
+      ntpStatus.textContent = 'Synchronizace NTP je vypnutá; aplikace používá čas hostitele.';
+      ntpLastSync.textContent = '';
+      return;
+    }
+
+    const offset = Number(data.offset_seconds || 0);
+    const offsetText = `${offset >= 0 ? '+' : ''}${offset.toFixed(3)} s`;
+    ntpStatus.textContent = data.synchronized
+      ? `Synchronizováno s ${data.ntp_server} · korekce ${offsetText}`
+      : (data.error || `Čeká se na synchronizaci s ${data.ntp_server}.`);
+    ntpLastSync.textContent = data.last_sync
+      ? `Poslední úspěšná synchronizace: ${new Date(data.last_sync).toLocaleString('cs-CZ', { timeZone: 'Europe/Prague' })}`
+      : 'Zatím neproběhla úspěšná synchronizace.';
+  }
+
+  async function loadGlobalSettings() {
+    try {
+      const response = await fetch('/api/global-settings', { cache: 'no-store' });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.message || 'Globální nastavení se nepodařilo načíst.');
+      if (ntpServerInput) ntpServerInput.value = data.ntp_server || '';
+      renderNtpStatus(data);
+    } catch (error) {
+      if (ntpStatus) ntpStatus.textContent = error.message || 'Stav NTP se nepodařilo načíst.';
+    }
+  }
+
+  async function saveNtpSettings(server) {
+    const buttons = [saveNtpBtn, disableNtpBtn].filter(Boolean);
+    buttons.forEach(button => { button.disabled = true; });
+    if (saveNtpBtn) saveNtpBtn.textContent = 'Ukládám…';
+    if (ntpSettingsAlert) ntpSettingsAlert.classList.add('hidden');
+
+    try {
+      const response = await fetch('/api/global-settings', {
+        method: 'POST',
+        headers: authHeaders(),
+        body: JSON.stringify({ ntp_server: server })
+      });
+      const data = await response.json();
+      if (!response.ok || !data.success) throw new Error(data.message || 'NTP nastavení se nepodařilo uložit.');
+      renderNtpStatus(data);
+      setNtpAlert(data.message, data.ntp_server && !data.synchronized ? 'warning' : 'success');
+    } catch (error) {
+      setNtpAlert(error.message || 'NTP nastavení se nepodařilo uložit.');
+      await loadGlobalSettings();
+    } finally {
+      buttons.forEach(button => { button.disabled = false; });
+      if (saveNtpBtn) saveNtpBtn.textContent = 'Ověřit server a uložit';
+    }
+  }
+
+  if (ntpSettingsForm) {
+    ntpSettingsForm.addEventListener('submit', event => {
+      event.preventDefault();
+      saveNtpSettings(ntpServerInput ? ntpServerInput.value : '');
+    });
+  }
+  if (disableNtpBtn) {
+    disableNtpBtn.addEventListener('click', () => {
+      if (ntpServerInput) ntpServerInput.value = '';
+      saveNtpSettings('');
+    });
   }
 
   if (refreshUnitsBtn) refreshUnitsBtn.addEventListener('click', loadManagedUnits);

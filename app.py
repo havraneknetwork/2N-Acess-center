@@ -14,6 +14,7 @@ import base64
 import sqlite3
 import threading
 import fcntl
+from zoneinfo import ZoneInfo
 from flask import Flask, jsonify, request, send_from_directory, redirect, session
 import requests
 from requests.auth import HTTPBasicAuth, HTTPDigestAuth
@@ -22,6 +23,7 @@ from cryptography.fernet import Fernet, InvalidToken
 import config
 import auth
 import permissions_config
+from ntp_clock import normalize_ntp_server, query_ntp_server
 
 import pywebpush
 from pywebpush import webpush, WebPushException
@@ -110,6 +112,11 @@ def init_security_keys_db():
             CREATE TABLE IF NOT EXISTS app_schema_migrations (
                 name TEXT PRIMARY KEY,
                 applied_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+            );
+            CREATE TABLE IF NOT EXISTS app_settings (
+                setting_key TEXT PRIMARY KEY,
+                setting_value TEXT NOT NULL,
+                updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
             );
             CREATE TABLE IF NOT EXISTS security_keys (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -388,6 +395,178 @@ def init_security_keys_db():
 
 init_security_keys_db()
 
+APP_TIMEZONE = ZoneInfo("Europe/Prague")
+_ntp_clock_lock = threading.Lock()
+_ntp_clock_state = {
+    "server": "",
+    "offset_seconds": 0.0,
+    "last_sync": None,
+    "error": "NTP server není nastaven.",
+    "last_attempt_monotonic": 0.0,
+}
+
+
+def _read_app_setting(key, default=""):
+    with auth.get_db_connection() as conn:
+        row = conn.execute(
+            "SELECT setting_value FROM app_settings WHERE setting_key = ?",
+            (key,)
+        ).fetchone()
+    return row["setting_value"] if row else default
+
+
+def _write_app_settings(values):
+    with auth.get_db_connection() as conn:
+        for key, value in values.items():
+            conn.execute(
+                """
+                INSERT INTO app_settings (setting_key, setting_value, updated_at)
+                VALUES (?, ?, CURRENT_TIMESTAMP)
+                ON CONFLICT(setting_key) DO UPDATE SET
+                    setting_value = excluded.setting_value,
+                    updated_at = CURRENT_TIMESTAMP
+                """,
+                (key, str(value))
+            )
+
+
+def _load_ntp_clock_state():
+    server = _read_app_setting("ntp_server")
+    try:
+        offset = float(_read_app_setting("ntp_offset_seconds", "0"))
+    except ValueError:
+        logger.error("Uložená NTP odchylka není platné číslo; používá se nula.")
+        offset = 0.0
+    last_sync = _read_app_setting("ntp_last_sync") or None
+    stored_error = _read_app_setting("ntp_last_error")
+    error = stored_error or (
+        "" if server and last_sync else
+        "NTP server není nastaven." if not server else
+        "Čas zatím nebyl synchronizován."
+    )
+    with _ntp_clock_lock:
+        _ntp_clock_state.update(
+            server=server,
+            offset_seconds=offset if server and last_sync else 0.0,
+            last_sync=last_sync,
+            error=error,
+            last_attempt_monotonic=0.0,
+        )
+
+
+def _ntp_clock_status():
+    with _ntp_clock_lock:
+        state = dict(_ntp_clock_state)
+    return {
+        "ntp_server": state["server"],
+        "synchronized": bool(state["server"] and state["last_sync"] and not state["error"]),
+        "last_sync": state["last_sync"],
+        "offset_seconds": round(state["offset_seconds"], 3),
+        "error": state["error"],
+        "timezone": "Europe/Prague",
+        "host_clock_changed": False,
+    }
+
+
+def _set_ntp_failure(server, error):
+    with _ntp_clock_lock:
+        if _ntp_clock_state["server"] != server:
+            _ntp_clock_state["offset_seconds"] = 0.0
+            _ntp_clock_state["last_sync"] = None
+        _ntp_clock_state.update(
+            server=server,
+            error=error,
+            last_attempt_monotonic=time.monotonic(),
+        )
+        state = dict(_ntp_clock_state)
+    try:
+        _write_app_settings({
+            "ntp_server": server,
+            "ntp_offset_seconds": state["offset_seconds"],
+            "ntp_last_sync": state["last_sync"] or "",
+            "ntp_last_error": error,
+        })
+    except sqlite3.Error:
+        logger.exception("Nepodařilo se uložit stav synchronizace NTP.")
+
+
+def _synchronize_ntp_server(server):
+    try:
+        result = query_ntp_server(server)
+    except (OSError, ValueError) as error:
+        message = f"NTP server se nepodařilo synchronizovat: {error}"
+        _set_ntp_failure(server, message)
+        logger.warning("%s", message)
+        return False
+
+    offset = result["offset_seconds"]
+    synced_at = datetime.fromtimestamp(
+        time.time() + offset,
+        timezone.utc
+    ).isoformat(timespec="seconds").replace("+00:00", "Z")
+    try:
+        _write_app_settings({
+            "ntp_server": server,
+            "ntp_offset_seconds": offset,
+            "ntp_last_sync": synced_at,
+            "ntp_last_error": "",
+        })
+    except sqlite3.Error:
+        logger.exception("NTP odpověď byla přijata, ale stav se nepodařilo uložit.")
+        with _ntp_clock_lock:
+            _ntp_clock_state["error"] = "NTP čas byl přijat, ale jeho stav se nepodařilo uložit."
+        return False
+    with _ntp_clock_lock:
+        _ntp_clock_state.update(
+            server=server,
+            offset_seconds=offset,
+            last_sync=synced_at,
+            error="",
+            last_attempt_monotonic=time.monotonic(),
+        )
+    logger.info(
+        "Aplikační čas synchronizován s NTP serverem %s (odchylka %.3f s, stratum %s).",
+        server, offset, result["stratum"]
+    )
+    return True
+
+
+def _ntp_sync_worker():
+    while True:
+        try:
+            server = _read_app_setting("ntp_server")
+            if not server:
+                with _ntp_clock_lock:
+                    _ntp_clock_state.update(
+                        server="",
+                        offset_seconds=0.0,
+                        last_sync=None,
+                        error="NTP server není nastaven.",
+                        last_attempt_monotonic=time.monotonic(),
+                    )
+            else:
+                with _ntp_clock_lock:
+                    should_sync = (
+                        server != _ntp_clock_state["server"]
+                        or time.monotonic() - _ntp_clock_state["last_attempt_monotonic"] >= 300
+                    )
+                    if should_sync:
+                        _ntp_clock_state["last_attempt_monotonic"] = time.monotonic()
+                if should_sync:
+                    _synchronize_ntp_server(server)
+        except (sqlite3.Error, OSError):
+            logger.exception("Chyba při automatické synchronizaci aplikačního času.")
+        time.sleep(30)
+
+
+def application_now_utc():
+    with _ntp_clock_lock:
+        offset = _ntp_clock_state["offset_seconds"]
+    return datetime.fromtimestamp(time.time() + offset, timezone.utc)
+
+
+_load_ntp_clock_state()
+
 
 def decrypt_unit_password(encrypted_password):
     try:
@@ -660,7 +839,7 @@ def check_unit_schedule(user_id, unit_id, now_dt=None):
         return False, str(error)
     if not any(isinstance(hours, list) and hours for hours in schedule.values()):
         return True, ""
-    now_dt = now_dt or datetime.now()
+    now_dt = now_dt or application_now_utc().astimezone(APP_TIMEZONE)
     allowed_hours = schedule.get(str(now_dt.weekday()), [])
     if now_dt.hour in allowed_hours:
         return True, ""
@@ -685,7 +864,7 @@ def get_unit_permanent_state(unit_id):
     if active and state["expires_at"]:
         try:
             expires = datetime.fromisoformat(state["expires_at"].rstrip("Z")).replace(tzinfo=timezone.utc)
-            remaining = max(0, int((expires - datetime.now(timezone.utc)).total_seconds()))
+            remaining = max(0, int((expires - application_now_utc()).total_seconds()))
             if remaining == 0:
                 active = False
         except ValueError:
@@ -701,7 +880,7 @@ def get_unit_permanent_state(unit_id):
 
 
 def set_unit_permanent_state(unit_id, active, user_id=None, username=None, duration_minutes=0):
-    now = datetime.now(timezone.utc)
+    now = application_now_utc()
     started_at = now.strftime("%Y-%m-%dT%H:%M:%SZ") if active else None
     expires_at = (
         (now + timedelta(minutes=duration_minutes)).strftime("%Y-%m-%dT%H:%M:%SZ")
@@ -823,10 +1002,11 @@ def _write_logs(logs: list):
 
 def add_log(level, title, message="", details=None, unit_id=None, unit_name=None):
     """Přidá záznam do sdíleného aktivity logu a do standardního loggeru."""
-    CZ_TZ = timezone(timedelta(hours=2))  # CEST (Europe/Prague letní čas)
-    timestamp = datetime.now(CZ_TZ).strftime("%H:%M:%S")
+    now_local = application_now_utc().astimezone(APP_TIMEZONE)
+    timestamp = now_local.strftime("%H:%M:%S")
     entry = {
         "time": timestamp,
+        "timestamp": now_local.isoformat(timespec="seconds"),
         "level": level.lower(),
         "title": title,
         "message": message,
@@ -1801,7 +1981,7 @@ def index():
 
 
 # SPA sekce – každá URL záložky vrátí index.html (frontend pak přečte pathname a zobrazí správnou sekci)
-_SPA_SECTIONS = ("home", "log", "logs", "info", "units", "users", "keys", "permanent", "schedule")
+_SPA_SECTIONS = ("home", "log", "logs", "info", "units", "users", "keys", "permanent", "schedule", "global-settings")
 
 @app.route("/<section>")
 def spa_section(section):
@@ -1824,6 +2004,68 @@ def serve_static_file(filename):
     if filename == "index.html" and not is_authenticated():
         return redirect("/login")
     return send_from_directory(app.static_folder, filename)
+
+
+@app.route("/api/global-settings", methods=["GET", "POST"])
+@login_required
+@admin_required
+def manage_global_settings():
+    if request.method == "GET":
+        return jsonify(_ntp_clock_status())
+
+    data = request.get_json(silent=True)
+    if not isinstance(data, dict):
+        return jsonify({"success": False, "message": "Očekávána jsou data globálního nastavení."}), 400
+    try:
+        server = normalize_ntp_server(data.get("ntp_server", ""))
+    except ValueError as error:
+        return jsonify({"success": False, "message": str(error)}), 400
+
+    if not server:
+        try:
+            _write_app_settings({
+                "ntp_server": "",
+                "ntp_offset_seconds": "0",
+                "ntp_last_sync": "",
+                "ntp_last_error": "NTP server není nastaven.",
+            })
+        except sqlite3.Error:
+            logger.exception("Nepodařilo se vypnout synchronizaci NTP.")
+            return jsonify({"success": False, "message": "Synchronizaci NTP se nepodařilo vypnout."}), 500
+        with _ntp_clock_lock:
+            _ntp_clock_state.update(
+                server="",
+                offset_seconds=0.0,
+                last_sync=None,
+                error="NTP server není nastaven.",
+                last_attempt_monotonic=time.monotonic(),
+            )
+        add_log("info", "NTP VYPNUTO", "Synchronizace aplikačního času s NTP serverem byla vypnuta.")
+        return jsonify({
+            "success": True,
+            "message": "Synchronizace NTP byla vypnuta; systémový čas hostitele zůstává beze změny.",
+            **_ntp_clock_status(),
+        })
+
+    try:
+        _write_app_settings({"ntp_server": server})
+    except sqlite3.Error:
+        logger.exception("Nepodařilo se uložit nastavení NTP serveru.")
+        return jsonify({"success": False, "message": "Nastavení NTP serveru se nepodařilo uložit."}), 500
+
+    synchronized = _synchronize_ntp_server(server)
+    status = _ntp_clock_status()
+    message = (
+        "NTP server byl uložen a aplikační čas synchronizován."
+        if synchronized
+        else "NTP server byl uložen, ale synchronizace se nezdařila. Aplikace se o ni bude opakovaně pokoušet."
+    )
+    add_log(
+        "success" if synchronized else "warning",
+        "NASTAVENÍ NTP",
+        f"NTP server {server}: {'synchronizace úspěšná' if synchronized else 'čeká na úspěšnou synchronizaci'}."
+    )
+    return jsonify({"success": True, "message": message, **status})
 
 
 @app.route("/api/units", methods=["GET", "POST"])
@@ -3456,6 +3698,13 @@ def webauthn_delete_credentials():
     if ok:
         add_log("info", "WEBAUTHN SMAZÁNO", f"Uživatel '{session.get('username')}' deaktivoval biometrické přihlášení.")
     return jsonify({"success": ok, "message": msg}), (200 if ok else 400)
+
+
+threading.Thread(
+    target=_ntp_sync_worker,
+    name="ntp-clock-sync",
+    daemon=True,
+).start()
 
 
 if __name__ == "__main__":

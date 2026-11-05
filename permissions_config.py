@@ -90,6 +90,13 @@ SIDEBAR_MENU_ITEMS: dict[str, dict[str, Any]] = {
         "icon": "calendar",
         "default_roles": ["admin", "správce"],
     },
+    "global-settings": {
+        "id": "global-settings",
+        "label": "Globální nastavení",
+        "description": "Časové pásmo a synchronizace času aplikace",
+        "icon": "settings",
+        "default_roles": ["admin"],
+    },
 }
 
 ALL_SIDEBAR_KEYS = tuple(SIDEBAR_MENU_ITEMS.keys())
@@ -109,7 +116,7 @@ DEFAULT_ROLE_PERMISSIONS: dict[str, dict[str, Any]] = {
         "permanent_unlock_max_duration": 1440,   # Max. doba trvalého odemčení v minutách (1440 = 24 h)
         "time_restricted": False,                # Řízeno rozvrhem v user_schedule
         "user_note": "Systémový administrátor",
-        "sidebar_menu": ["home", "logs", "info", "users", "keys", "permanent", "schedule"],
+        "sidebar_menu": ["home", "logs", "info", "users", "keys", "permanent", "schedule", "global-settings"],
         "can_manage_users": True,                # Povolena správa uživatelů
     },
 

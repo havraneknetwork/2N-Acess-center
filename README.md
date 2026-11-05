@@ -118,9 +118,18 @@ Oprávnění pro odemykání a trvalé odemčení lze nastavit zvlášť pro ka�
 - **Bezpečnostní klíče**: registrace čipové karty po jejím přiložení k jednotce a určení funkce. Dostupné akce zahrnují odemknutí, zazvonění, přepnutí trvalého odemčení a blokování webového odemykání. Klíč lze navázat na konkrétní jednotku nebo na všechny.
 - **Trvalé odemčení**: oprávněný uživatel může pro příslušnou jednotku aktivovat časově omezené trvalé odemčení; limit určuje přidělené oprávnění. Stav lze ukončit také ovládáním jednotky.
 - **Rozvrh**: časová pravidla přístupu se konfigurují pro uživatele a jednotku.
+- **Globální nastavení** (pouze administrátor): výběr NTP serveru pro korekci času používaného aplikací.
 - **Nastavení účtu**: osobní nastavení a volba jednotek zobrazovaných na Home a pro oznámení.
 
 Oznámení v prohlížeči vyžadují souhlas uživatele s oznámeními. Vzdálená použití webových push notifikací obvykle vyžadují bezpečný kontext HTTPS.
+
+### Čas, časové pásmo a NTP
+
+Aplikace pro zobrazení času používá časové pásmo `Europe/Prague`, které automaticky zohledňuje přechody mezi letním a zimním časem. Administrátor může v bočním menu otevřít **Globální nastavení → NTP server**, zadat hostname nebo IP adresu serveru a ověřit spojení. Aplikace se NTP serveru dotazuje přes UDP port 123, zobrazuje stav, poslední úspěšnou synchronizaci a naměřenou odchylku. Nastavení se ukládá do aplikační databáze; dotaz se automaticky opakuje každých několik minut.
+
+Záměrně se **nemění systémový čas hostitele ani Dockeru** a kontejner nedostává oprávnění `SYS_TIME` ani privilegovaný režim. Naměřená odchylka (maximálně 5 minut) se používá uvnitř aplikace pro systémový log, časové rozvrhy a časově omezené odemčení. UDP odchozí provoz na port 123 musí povolit síť/firewall. Používejte důvěryhodný NTP server. Pokud je NTP server nedostupný, aplikace zachová poslední úspěšnou korekci (pokud existuje) a zobrazí chybu synchronizace; bez předchozí korekce používá systémový čas. Odchylku větší než 5 minut aplikace z bezpečnostních důvodů odmítne.
+
+Tato funkce nenahrazuje synchronizaci operačního systému. Pokud potřebují přesné hodiny také Docker hostitel nebo jiné služby, nastavte synchronizaci přes NTP na samotném operačním systému serveru.
 
 ## Nastavení prostředí
 

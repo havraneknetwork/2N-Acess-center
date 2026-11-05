@@ -4,7 +4,7 @@
 //   - API requesty: Network-only (nikdy se necachují – obsahují dynamická data a autentizaci)
 //   - Navigace offline: Zobrazí offline.html fallback
 
-const CACHE_VERSION = 'v20';
+const CACHE_VERSION = 'v21';
 const CACHE_NAME = `door-unlocker-${CACHE_VERSION}`;
 
 // Shell aplikace – předem uložené assety při instalaci
